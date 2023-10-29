@@ -288,6 +288,27 @@ def show_ROC_score(self, y_test, pos_prob, kind='fp_tp', plot=False, label='Cust
     plt.legend()
     plt.show()
 
+# This method prints predicted and actual labels and shows actual image
+def show_prediction_result(x_test, y_pred, y_test, labels, n_img=None):
+    # If n_img is not set, find random index between 0 and x_test length
+    if n_img is None:
+        n_img = rnd.randint(0, (len(x_test)- 1))
+    print("====== Random Prediction Result ======")
+    print("Predicted label: " + labels[y_pred[n_img]], end="")
+    print("  -  Actual label: " + labels[y_test[n_img]])
+    # If Predicted label and Actual label are not same there is a classification mismatch
+    if labels[y_pred[n_img]] != labels[y_test[n_img]]:
+        print("There is a classification mismatch here!")
+    plt.title("The image of "+ labels[y_test[n_img]] +" from the Dataset")
+    # plt.imshow(x_test[n_img], cmap=plt.cm.gray_r)
+    plt.imshow(x_test[n_img])
+    plt.show()
+
+def get_misclassified_indexes(y_test, y_pred):
+    missed = []
+    missed = np.where(y_test[y_test != y_pred])
+    return missed[0]
+
 # Reference
 # https://github.com/keras-team
 # 

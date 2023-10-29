@@ -1,16 +1,13 @@
-from IPython import display
 import os
 import zipfile
 import glob
-import imageio
+import re  # Regex for string parsing
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import PIL
+from PIL import Image
 import tensorflow as tf
 import tensorflow_probability as tfp
-from tensorflow import keras
-import time
 from datetime import datetime
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score # Evaluation metrics
 from sklearn.metrics import classification_report  # Precision, recall, f1-score metrics
@@ -416,6 +413,23 @@ def compare_historys(base_model_history, fine_tune_model_history, initial_epochs
     plt.title('Training and Validation Loss')
     plt.xlabel('epoch')
     plt.show()
+
+def change_img_file_format(img_dir, src_format, dest_format):
+    formats = ['jpg', 'png', 'jpeg', 'JPG', 'JPEG', 'PNG']
+    cnv_rgx_frmt = lambda frmt: '\.' + frmt + '$' 
+    rgx_formats = map(cnv_rgx_frmt, formats)
+
+    if any([(re.search(format, img_dir)!=None) for format in rgx_formats]):
+        if dest_format in formats:
+            if dest_format in img_dir[-5:]:
+                print("UserWarning: This image file is already {0} format".format(dest_format))
+            else:
+                img = Image.open(img_dir)
+                img.save()
+        else:
+            raise ValueError("Invalid image format, use '.png', '.jpeg', '.jpg' file formats")    
+    else:
+        raise ValueError("Invalid image format, use '.png', '.jpeg', '.jpg' file formats")
 
 # Reference
 # https://github.com/keras-team
