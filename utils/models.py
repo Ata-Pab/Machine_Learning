@@ -94,7 +94,7 @@ def attention_block(x, gating, inter_shape):
                       strides=(shape_theta_x[1] // shape_g[1], shape_theta_x[2] // shape_g[2]),
                       padding='same')(phi_g)  # 16
 
-  concat_xg = layers.add([phi_g, theta_x])
+  concat_xg = layers.add([upsample_g, theta_x])
   act_xg = layers.Activation('relu')(concat_xg)
 
   psi = layers.Conv2D(1, (1,1), padding='same')(act_xg)
@@ -106,7 +106,7 @@ def attention_block(x, gating, inter_shape):
   y = layers.multiply([upsample_psi, x])
 
   result = layers.Conv2D(shape_x[3], (1,1), padding='same')(y)
-  result_bn = layers.BatchNormalization(result)
+  result_bn = layers.BatchNormalization()(result)
 
   return result_bn
 
