@@ -110,7 +110,7 @@ def attention_block(x, gating, inter_shape):
 
   return result_bn
 
-def UNet(input_shape, filter_size=3, filter_num=64, up_sample_size=2, num_classes=1, dropout_rate=0.0, batch_norm=True):
+def UNet(input_shape, filter_size=3, filter_num=64, up_sample_size=2, num_classes=1, dropout_rate=0.0, batch_norm=True, verbose=0):
     '''
     filter_num: number of filters for the conv layer
     filter_size: size of the convolutional filter (3,3)
@@ -169,10 +169,11 @@ def UNet(input_shape, filter_size=3, filter_num=64, up_sample_size=2, num_classe
 
     # Model
     model = models.Model(inputs, conv_final, name="UNet")
-    print(model.summary())
+    if verbose > 0:
+        model.summary()
     return model
 
-def Attention_UNet(input_shape, filter_size=3, filter_num=64, up_sample_size=2, num_classes=1, dropout_rate=0.0, batch_norm=True):
+def Attention_UNet(input_shape, filter_size=3, filter_num=64, up_sample_size=2, num_classes=1, dropout_rate=0.0, batch_norm=True, verbose=0):
     '''
     filter_num: number of filters for the conv layer
     filter_size: size of the convolutional filter (3,3)
@@ -239,9 +240,11 @@ def Attention_UNet(input_shape, filter_size=3, filter_num=64, up_sample_size=2, 
 
     # Model integration
     model = models.Model(inputs, conv_final, name="Attention_UNet")
+    if verbose > 0:
+        model.summary()
     return model
 
-def Attention_ResUNet(input_shape, filter_size=3, filter_num=64, up_sample_size=2, num_classes=1, dropout_rate=0.0, batch_norm=True):
+def Attention_ResUNet(input_shape, filter_size=3, filter_num=64, up_sample_size=2, num_classes=1, dropout_rate=0.0, batch_norm=True, verbose=0):
     '''
     filter_num: number of filters for the conv layer
     filter_size: size of the convolutional filter (3,3)
@@ -308,4 +311,6 @@ def Attention_ResUNet(input_shape, filter_size=3, filter_num=64, up_sample_size=
 
     # Model integration
     model = models.Model(inputs, conv_final, name="AttentionResUNet")
+    if verbose > 0:
+        model.summary()
     return model
