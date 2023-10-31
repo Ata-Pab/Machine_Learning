@@ -120,6 +120,27 @@ def contrastive_loss(y_true, y_pred, margin=1):
     margin_square = tf.square(tf.maximum(margin - (y_pred), 0))
     return tf.reduce_mean((1 - y_true) * margin_square + (y_true) * square_pred)
 
+def focal_loss(y_true, y_pred, alpha=1.0, gamma=2.0):    
+    '''
+    Focal Loss
+    FL(p_t) = - (1 - p_t)^gamma * log(p_t)
+
+    p_t is the predicted probability for the true class.
+    gamma is a hyperparameter to control the focusing effect.
+
+    The p_t calculation is a way to weigh the predicted probability 
+    based on the true class label.
+    '''
+    epsilon = 1e-7
+    y_pred = tf.cast(y_pred, tf.float32)
+    # Clip predicted values to avoid log(0) errors
+    y_pred = tf.clip_by_value(y_pred, epsilon, 1 - epsilon)
+
+    p_t = y_true * y_pred + (1 - y_true) * (1 - y_pred)
+    focal_loss = -tf.pow(1 - p_t, gamma) * tf.math.log(p_t)
+
+    return tf.reduce_mean(alpha * focal_loss)
+
 # Mad Score
 # # Example usage - Calculate MSE (mean squared error) between ground truth and reconstructed data before employing mad_score
 # THRESHOLD = 3
