@@ -34,6 +34,18 @@ def get_image_file_list(dir, ext='jpeg'):
 
     return img_list
 
+# Get all image files in specified directory (including sub-folders)
+def get_all_img_files_in_directory(data_dir, ext='jpeg', verbose=0):
+    img_file_list = []
+    for dirpath, dirnames, filenames in os.walk(data_dir):
+      if len(filenames) > 0:
+        img_file_list.extend(get_image_file_list(dirpath, ext=ext))
+
+      if verbose > 0:
+        print(f"There are {len(dirnames)} directories and {len(filenames)} files in '{dirpath}'.")
+    
+    return img_file_list
+
 def prepare_imgs_as_keras_input(np_array, input_size):
     '''This method prepares a data array as a keras input
     Example of input_size parameter usage: (28,28,1) -> 28x28 pixels gray scale images, (28,28,3) 28x28 pixels RGB images
