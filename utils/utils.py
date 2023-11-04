@@ -442,6 +442,12 @@ def change_img_file_format(img_dir, src_format, dest_format):
             raise ValueError("Invalid image format, use '.png', '.jpeg', '.jpg' file formats")    
     else:
         raise ValueError("Invalid image format, use '.png', '.jpeg', '.jpg' file formats")
+    
+# Convert HEX code pixel RGB code pixel
+def hexc_to_rgbc(hex_code):
+    hex_code = hex_code.lstrip('#')
+    rgb_img = np.array(tuple(int(hex_code[i:i+2], 16) for i in (0,2,4)))
+    return rgb_img
 
 # Reference
 # https://github.com/keras-team
