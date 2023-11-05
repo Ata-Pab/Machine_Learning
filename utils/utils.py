@@ -37,11 +37,20 @@ def get_image_file_list(dir, ext='jpeg'):
     return img_list
 
 # Get all image files in specified directory (including sub-folders)
-def get_all_img_files_in_directory(data_dir, ext='jpeg', verbose=0):
+def get_all_img_files_in_directory(data_dir, ext='jpeg', exc="", verbose=0):
+    '''
+    Get all image files in specified directory (including sub-folders)
+    data_dir: Investigated directory 
+    ext: extension to be found
+    exc: exclude directories from search
+    verbose: output info
+    :return image file list
+    '''
     img_file_list = []
     for dirpath, dirnames, filenames in os.walk(data_dir):
-      if len(filenames) > 0:
-        img_file_list.extend(get_image_file_list(dirpath, ext=ext))
+      if not((exc != "") and (exc in dirpath)):
+        if len(filenames) > 0:
+          img_file_list.extend(get_image_file_list(dirpath, ext=ext))
 
       if verbose > 0:
         print(f"There are {len(dirnames)} directories and {len(filenames)} files in '{dirpath}'.")
