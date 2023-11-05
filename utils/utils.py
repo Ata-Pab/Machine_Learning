@@ -327,7 +327,7 @@ def save_custom_model(model, name="model", verbose=1):
     date = str(datetime.now())
     date = (((date.replace("-", "_")).replace(":", "_")).replace(" ", "_")).split(".")[0]
 
-    model_name = str(name) + str(date) + ".keras"
+    model_name = str(name) + "_" + str(date) + ".keras"
     model.save(model_name)
 
     if verbose > 0:
