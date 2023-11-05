@@ -1,5 +1,6 @@
 import os
 import zipfile
+import cv2
 import glob
 import re  # Regex for string parsing
 import matplotlib.pyplot as plt
@@ -7,10 +8,11 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 import tensorflow as tf
-import tensorflow_probability as tfp
+#import tensorflow_probability as tfp
 from datetime import datetime
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score # Evaluation metrics
 from sklearn.metrics import classification_report  # Precision, recall, f1-score metrics
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
 ROT_0   = 0
@@ -448,6 +450,80 @@ def hexc_to_rgbc(hex_code):
     hex_code = hex_code.lstrip('#')
     rgb_img = np.array(tuple(int(hex_code[i:i+2], 16) for i in (0,2,4)))
     return rgb_img
+
+# Divide images into same sized partitions
+def patchify_images(img_file_list, patch_size=256, method='CROP', scl=False, cvt_rgb=False, verbose=0):
+    '''
+    img_file_list: Takes image files' paths as input
+    patch_size: Divides all images to speicifed patch size
+    method: Partitioning method -> 'CROP' or 'RESIZE'
+    scl: Scales images
+    cvt_rgb: Convert BGR decoding to RGB format
+    Return: Image numpy array
+
+    Need patchify package (https://pypi.org/project/patchify/)
+    ! pip install patchify
+    Modified code of Dr. Sreenivas Bhattiprolu
+    '''
+    ! pip install patchify
+    from patchify import patchify
+
+    image_dataset = []
+    scaler = MinMaxScaler(feature_range=(0,1))
+
+    for image_file in img_file_list:
+      image = cv2.imread(image_file, 1)  # Read each image as BGR
+      if cvt_rgb == True:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+      SIZE_X = (image.shape[1]//patch_size)*patch_size # Nearest size divisible by specified patch size
+      SIZE_Y = (image.shape[0]//patch_size)*patch_size # Nearest size divisible by specified patch size
+      image = Image.fromarray(image)
+      if method == 'RESIZE':
+        image = image.resize((SIZE_X, SIZE_Y))  # Not recommended for semantic segmentation
+      else:
+        image = image.crop((0 ,0, SIZE_X, SIZE_Y))  # Crop from top left corner
+      image = np.array(image)
+      patches_img = patchify(image, (patch_size, patch_size, 3), step=patch_size)  # Step = patch_size for patch_size patches means no overlap
+
+      for i in range(patches_img.shape[0]):
+        for j in range(patches_img.shape[1]):
+            single_patch_img = patches_img[i,j,:,:]
+
+            if scl ==True:
+              # Use minmaxscaler instead of just dividing by 255.
+              single_patch_img = scaler.fit_transform(single_patch_img.reshape(-1, single_patch_img.shape[-1])).reshape(single_patch_img.shape)
+              # single_patch_img = (single_patch_img.astype('float32')) / 255.
+
+            single_patch_img = single_patch_img[0] # No need to other dimensions.
+            image_dataset.append(single_patch_img)
+
+    return np.array(image_dataset)
+
+def create_labels_for_mask(mask, categories):
+  '''
+  Set label masks as input in RGB format
+  Replace pixels with specific RGB values
+  categories: rgb_codes for specified categories
+  '''
+  label_seg = np.zeros(mask.shape, dtype=np.uint8)
+  for ix, category in enumerate(categories):
+      label_seg[np.all(mask == category, axis=-1)] = ix
+
+  return label_seg[:,:,0]  # Just return the first channel
+
+# Creates a label map for the given masks with class categories
+def rgb_to_2D_label_map(mask_imgs, categories):
+    labels = []
+
+    for ix in range(mask_imgs.shape[0]):
+      label = create_labels_for_mask(mask_imgs[ix], categories=categories)
+      labels.append(label)
+
+    labels = np.array(labels)
+    labels = np.expand_dims(labels, axis=3)
+    
+    return labels
+
 
 # Reference
 # https://github.com/keras-team
