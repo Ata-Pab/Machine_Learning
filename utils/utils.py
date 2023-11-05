@@ -451,6 +451,19 @@ def hexc_to_rgbc(hex_code):
     rgb_img = np.array(tuple(int(hex_code[i:i+2], 16) for i in (0,2,4)))
     return rgb_img
 
+def pip_install_package(package):
+    try:
+      return __import__(package)
+    except ImportError:
+      import sys
+      import subprocess
+      # implement pip as a subprocess:
+      subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
+      # process output with an API in the subprocess module:
+      reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
+      installed_packages = [r.decode().split('==')[0] for r in reqs.split()]
+      print(installed_packages)
+
 # Divide images into same sized partitions
 def patchify_images(img_file_list, patch_size=256, method='CROP', scl=False, cvt_rgb=False, verbose=0):
     '''
@@ -467,17 +480,7 @@ def patchify_images(img_file_list, patch_size=256, method='CROP', scl=False, cvt
     '''
     package = 'patchify'
 
-    try:
-      return __import__(package)
-    except ImportError:
-      import sys
-      import subprocess
-      # implement pip as a subprocess:
-      subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
-      # process output with an API in the subprocess module:
-      reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
-      installed_packages = [r.decode().split('==')[0] for r in reqs.split()]
-      print(installed_packages)
+    pip_install_package(package)
        
     from patchify import patchify
 
