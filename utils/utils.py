@@ -162,7 +162,8 @@ def create_dataset_pipeline(img_files, batch_size, img_size=None, scl=True, shuf
           augmented_dataset = tf.data.Dataset.from_tensor_slices(np.array(list(temp_dataset.map(apply_augmentation))))
           dataset = dataset.concatenate(augmented_dataset)
     # Get image pairs for data pipeline (as an autoencoder input) - Do not create image pairs if you train the model with GANs
-    # dataset = dataset.map(lambda image: (image, image), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    if duplicate:
+      dataset = dataset.map(lambda image: (image, image), num_parallel_calls=tf.data.experimental.AUTOTUNE)
     
     # Shuffle (only training set) and create batches
     if shuffle == True:
