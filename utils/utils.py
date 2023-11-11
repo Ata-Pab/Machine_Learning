@@ -550,6 +550,23 @@ def patchify_images(img_file_list, patch_size=256, img_size=None, method='CROP',
 
     return np.array(image_dataset)
 
+def unpatchify_img(patches, grid):
+  cols, rows = grid[0], grid[1]
+  patch_list = []
+  num_col_patches = 0
+
+  for row_ix in range(rows): 
+    patch_list.append(patches[num_col_patches])
+    for col_ix in range(cols-1):
+      patch_list[row_ix] = np.concatenate((patch_list[row_ix], patches[num_col_patches+1+col_ix]), axis=1)
+    num_col_patches += cols
+    if row_ix == 0:
+      image = patch_list[row_ix]
+    else:
+      image = np.concatenate((image, patch_list[row_ix]), axis=0)
+  
+  return image
+
 def create_labels_for_mask(mask, categories):
   '''
   Set label masks as input in RGB format
