@@ -94,7 +94,7 @@ def walk_through_dir(data_dir):
       print(f"There are {len(dirnames)} directories and {len(filenames)} images in '{dirpath}'.")
 
 # Create a function to import an image and resize it to be able to be used with our model
-def load_images(filename, img_size=None, scl=True, num_channels=3, rot=ROT_0, accelerator='GPU'):
+def load_images(filename, img_size=None, aspect=False, scl=True, num_channels=3, rot=ROT_0, accelerator='GPU'):
     # Read in target file (an image)
     if accelerator == 'TPU':
       with open(filename, "rb") as img_file:
@@ -108,6 +108,11 @@ def load_images(filename, img_size=None, scl=True, num_channels=3, rot=ROT_0, ac
 
     # Resize the image (to the same size our model was trained on)
     if img_size != None:
+      if aspect == True:
+        width = img.shape[1]  # Get width of the image
+        ratio = width / float(width)
+        img_size = (width, int(img.shape[0] * ratio))
+
       img = tf.image.resize(img, size = img_size, preserve_aspect_ratio=False)
 
     # Rotate images 270 degree due to capturing photos in vertical position with iPhone
@@ -121,9 +126,9 @@ def load_images(filename, img_size=None, scl=True, num_channels=3, rot=ROT_0, ac
     if scl == True: img = img / 255.
     return img
 
-def load_and_prepare_images(img_file_list, img_size=None, scl=None, num_channels=3, rot=ROT_0, accelerator='GPU'):
+def load_and_prepare_images(img_file_list, img_size=None, aspect=False, scl=None, num_channels=3, rot=ROT_0, accelerator='GPU'):
     def process_images(filename):
-        return load_images(filename, img_size, scl, num_channels, rot, accelerator)
+        return load_images(filename, img_size, aspect, scl, num_channels, rot, accelerator)
 
     return np.array(list(map(process_images, img_file_list)))
 
@@ -133,11 +138,12 @@ def concatenate_images(original_images, augmented_images):
 
 
 # Create Dataset Pipeline for tf.models
-def create_dataset_pipeline(img_files, batch_size, img_size=None, scl=True, shuffle=False, num_channels=3, rot=ROT_0, duplicate=False, aug_layer=None, data_aug_power=1, accelerator='GPU'):
+def create_dataset_pipeline(img_files, batch_size, img_size=None, aspect=False, scl=True, shuffle=False, num_channels=3, rot=ROT_0, duplicate=False, aug_layer=None, data_aug_power=1, accelerator='GPU'):
     '''
     img_files: Image file list
     batch_size: Batch size
     img_size: Resize image (h,w)
+    aspect: Keep aspect ratio of the image or not
     scl= Scale image. default True
     shuffle= Shuffle images. default False
     num_channels= number of channels. default 3
@@ -149,7 +155,7 @@ def create_dataset_pipeline(img_files, batch_size, img_size=None, scl=True, shuf
     accelerator= 'GPU' or 'TPU'. default 'GPU'
     '''
     # Read images from directory and reshape, scale
-    dataset = tf.data.Dataset.from_tensor_slices(load_and_prepare_images(img_files, img_size=img_size, scl=scl, num_channels=num_channels, rot=rot, accelerator=accelerator))
+    dataset = tf.data.Dataset.from_tensor_slices(load_and_prepare_images(img_files, img_size=img_size, aspect=aspect, scl=scl, num_channels=num_channels, rot=rot, accelerator=accelerator))
     
     if aug_layer != None:
         # Apply specified augmentation sequential layer to the image
@@ -490,10 +496,11 @@ def pip_install_package(package):
       print(installed_packages)
 
 # Divide images into same sized partitions
-def patchify_images(img_file_list, patch_size=256, method='CROP', scl=False, cvt_rgb=False, verbose=0):
+def patchify_images(img_file_list, patch_size=256, img_size=None, method='CROP', scl=False, cvt_rgb=False, verbose=0):
     '''
     img_file_list: Takes image files' paths as input
     patch_size: Divides all images to speicifed patch size
+    img_size: Resize images before patchify
     method: Partitioning method -> 'CROP' or 'RESIZE'
     scl: Scales images
     cvt_rgb: Convert BGR decoding to RGB format
@@ -514,6 +521,9 @@ def patchify_images(img_file_list, patch_size=256, method='CROP', scl=False, cvt
 
     for image_file in img_file_list:
       image = cv2.imread(image_file, 1)  # Read each image as BGR
+      if img_size != None:
+        # Resize the image
+        image = image.resize(img_size[1], img_size[0])
       if cvt_rgb == True:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
       SIZE_X = (image.shape[1]//patch_size)*patch_size # Nearest size divisible by specified patch size
