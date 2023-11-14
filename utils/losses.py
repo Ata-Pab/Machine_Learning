@@ -120,6 +120,20 @@ def contrastive_loss(y_true, y_pred, margin=1):
     margin_square = tf.square(tf.maximum(margin - (y_pred), 0))
     return tf.reduce_mean((1 - y_true) * margin_square + (y_true) * square_pred)
 
+def triplet_loss(self, y_true, y_pred):
+    anchor, positive, negative = y_pred[0], y_pred[1], y_pred[2]
+    #pos_dist = K.sum(K.square(anchor-positive), axis=1)
+    #neg_dist = K.sum(K.square(anchor-negative), axis=1)
+    pos_dist = tf.reduce_sum(tf.square(anchor - positive), axis=1)
+    neg_dist = tf.reduce_sum(tf.square(anchor - negative), axis=1)
+    calc_loss = pos_dist - neg_dist + self.margin  # calculated loss
+    # The default value of epsilon is 1e-7. This value is used to prevent division by zero 
+    # in various operations such as in the computation of gradients during training, or in 
+    # the calculation of certain functions like logarithms or exponentials.
+    # return K.maximum(calc_loss, 0.0) 
+    #return K.maximum(calc_loss, K.epsilon())
+    return tf.maximum(calc_loss, tf.keras.backend.epsilon())
+
 def focal_loss(y_true, y_pred, alpha=1.0, gamma=2.0):    
     '''
     Focal Loss
