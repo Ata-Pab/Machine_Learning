@@ -330,8 +330,8 @@ class ConvAEModel(tf.keras.Model):
         self.config_conv_blocks()
         self._model = self.create_custom_model()
 
-        self.loss_tracker = keras.metrics.Mean(name='loss')
-        self.mae_metric = keras.metrics.MeanAbsoluteError()
+        self.loss_tracker = tf.keras.metrics.Mean(name='loss')
+        self.mae_metric = tf.keras.metrics.MeanAbsoluteError()
         #self.accuracy_metric = keras.metrics.Accuracy()
         # https://keras.io/api/metrics/
 
@@ -350,7 +350,7 @@ class ConvAEModel(tf.keras.Model):
 
         if self.batch_norm:
           name = 'conv_block_bacth_norm_' + str(self.layer_iter)
-          x = BatchNormalization(name=name)(x)
+          x = layers.BatchNormalization(name=name)(x)
 
         self.layer_iter += 1
         x = self.act_func(x)
