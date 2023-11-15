@@ -314,3 +314,138 @@ def Attention_ResUNet(input_shape, filter_size=3, filter_num=64, up_sample_size=
     if verbose > 0:
         model.summary()
     return model
+
+class ConvAEModel(tf.keras.Model):
+    def __init__(self, input_shape, latent_dim, layer_sizes=None):
+        super().__init__()
+        self._input_shape = input_shape
+        self._latent_dim = latent_dim
+        self.layer_iter = 0
+        self._layer_sizes = [32, 64, 128, 128, 256, 256, 256]
+        if layer_sizes != None:
+          self._layer_sizes = layer_sizes
+        num_strides = len(self._layer_sizes)
+        self._num_dense = int(self._input_shape[0]/(2**num_strides))
+
+        self.config_conv_blocks()
+        self._model = self.create_custom_model()
+
+        self.loss_tracker = keras.metrics.Mean(name='loss')
+        self.mae_metric = keras.metrics.MeanAbsoluteError()
+        #self.accuracy_metric = keras.metrics.Accuracy()
+        # https://keras.io/api/metrics/
+
+    def config_conv_blocks(self, padding='same', use_bias=True, batch_norm=True, use_leaky_relu=True, leaky_slope=0.2):
+        self.padding = padding
+        self.use_bias = use_bias
+        self.batch_norm = batch_norm
+        self.leaky_slope = leaky_slope
+        self.act_func = tf.keras.layers.LeakyReLU(self.leaky_slope) if use_leaky_relu else tf.keras.layers.ReLU()
+
+    def conv_block(self, x, filters, kernel, stride, deconv=False, name='conv_block'):
+        if deconv:
+          x = tf.keras.layers.Conv2DTranspose(filters=filters, kernel_size=(kernel,kernel), strides=stride, padding=self.padding, use_bias=self.use_bias, name=name)(x)
+        else:
+          x = tf.keras.layers.Conv2D(filters=filters, kernel_size=(kernel,kernel), strides=stride, padding=self.padding, use_bias=self.use_bias, name=name)(x)
+
+        if self.batch_norm:
+          name = 'conv_block_bacth_norm_' + str(self.layer_iter)
+          x = BatchNormalization(name=name)(x)
+
+        self.layer_iter += 1
+        x = self.act_func(x)
+        return x
+
+    def summary(self):
+        return self._model.summary()
+
+    def create_custom_model(self):
+        # Encoder Part
+        input = layers.Input(shape=self._input_shape)
+        # Conv blocks
+        x = self.conv_block(input, filters=self._layer_sizes[0], kernel=5, stride=2, name='conv2d_block_0')
+        for ix, num_filter in enumerate(self._layer_sizes[1:]):
+          _name = 'conv2d_block_' + str((ix+1))
+          x = self.conv_block(x, filters=num_filter, kernel=5, stride=2, name=_name)
+        # Flatten layer
+        x = layers.Flatten(name='flatten_layer')(x)
+        x = layers.Dense(units=(self._num_dense*self._num_dense*256))(x)
+
+        #x = BatchNormalization(name='bacth_norm_1')(x)
+        x = layers.LeakyReLU(alpha=self.leaky_slope)(x)
+        # Latent vector
+        x = layers.Dense(units=self._latent_dim, name='latent_layer')(x)
+        x = layers.LeakyReLU(alpha=self.leaky_slope)(x)
+
+        # Decoder Part
+        x = layers.Dense(units=(self._num_dense*self._num_dense*256))(x)
+        #x = BatchNormalization(name='batch_norm_2')(x)
+        x = layers.LeakyReLU(alpha=self.leaky_slope)(x)
+
+        x = tf.keras.layers.Reshape((self._num_dense,self._num_dense,256), name='reshape_latent')(x)
+
+        # Set activation func to ReLu for Conv2dTrasnpose blocks
+        self.config_conv_blocks(use_leaky_relu=False)
+        for ix, num_filter in enumerate(self._layer_sizes[-2::-1]):  # Reverse layer_sizes list and remove first element of the reversed array
+          _name = 'conv2d_transpose_block_' + str((ix+1))
+          x = self.conv_block(x, num_filter, kernel=5, stride=2, deconv=True, name=_name)
+
+        output = layers.Conv2DTranspose(filters=self._input_shape[2], kernel_size=5, strides=2, padding='same',
+        use_bias=True, activation='sigmoid')(x)
+
+        return tf.keras.models.Model(input, output, name="conv_ae_model")
+
+    def call(self, x):
+        return self._model(x, training=False)
+
+    def compute_loss(self, y, y_pred):
+        return tf.keras.losses.mean_squared_error(y, y_pred)
+
+    def train_step(self, data):
+        #x, y = data  # Data structure depends on your model and on what you pass to fit()
+        x, _ = data  # In autoencoders, the input and output are usually the same.
+
+        with tf.GradientTape() as tape:
+            y_pred = self._model(x, training=True)  # Forward pass
+            # Compute custom Loss value
+            loss = self.compute_loss(x, y_pred)
+            # https://keras.io/api/losses/
+
+        # Compute Gradients
+        trainable_vars = self._model.trainable_variables
+        gradients = tape.gradient(loss, trainable_vars)
+
+        # Update weights
+        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
+
+        # Update the custom metrics
+        self.loss_tracker.update_state(loss)
+        self.mae_metric.update_state(x, y_pred)
+        #self.accuracy_metric.update_state(y, y_pred)
+
+        return {'loss': self.loss_tracker.result(), 'mae': self.mae_metric.result()}
+
+    def test_step(self, data):
+        # Unpack the data
+        #x, y = data
+        x, _ = data  # In autoencoders, the input and output are usually the same.
+
+        # Compute predictions
+        y_pred = self._model(x, training=False)
+        # Updates the metrics tracking the loss
+        valid_loss = self.compute_loss(y=x, y_pred=y_pred)
+
+        # Update the custom metrics
+        self.loss_tracker.update_state(valid_loss)
+        self.mae_metric.update_state(x, y_pred)
+
+        return {'val_loss': self.loss_tracker.result(), 'val_mae': self.mae_metric.result()}
+
+    @property
+    def metrics(self):
+        # We list our `Metric` objects here so that `reset_states()` can be
+        # called automatically at the start of each epoch
+        # or at the start of `evaluate()`.
+        # If you don't implement this property, you have to call
+        # `reset_states()` yourself at the time of your choosing.
+        return [self.loss_tracker, self.mae_metric]
