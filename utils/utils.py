@@ -501,6 +501,17 @@ def apply_blur(image, kernel_size=3, sigma=2):
     image = tf.nn.depthwise_conv2d(image[None], blur, [1,1,1,1], 'SAME')
     return image[0]
 
+def apply_distortion(image, distortion_factor=0.05):
+    assert (distortion_factor >= 0.0) and (distortion_factor <= 1.0)
+    image += distortion_factor * tf.random.uniform(tf.shape(image))
+    assert image.dtype == tf.float32
+  
+    # Clipping input data to the valid range
+    image = tf.clip_by_value(image, clip_value_min=0.0, clip_value_max=1.0)
+    #image_np = image.numpy()
+    #image_np[np.where(image_np > 1.0)] = 1.0
+    return image
+
 def random_cutout_image(image, min_mask_edge=5, max_mask_edge=20, num_cuts=1, padding=5):
     height, width, channels = image.shape
     tensor_format = False
