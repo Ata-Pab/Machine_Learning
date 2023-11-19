@@ -6,12 +6,11 @@ import re  # Regex for string parsing
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import random as rnd
 from PIL import Image
 import tensorflow as tf
 #import tensorflow_probability as tfp
 from datetime import datetime
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score # Evaluation metrics
-from sklearn.metrics import classification_report  # Precision, recall, f1-score metrics
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
@@ -278,7 +277,6 @@ def get_wrong_predictions(img_file_paths, y_true, y_pred, pred_probs, y_true_cla
     good_preds = good_preds.sort_values('pred_conf', ascending=False)[:100]  # Most correct 100 predictions
     return good_preds
 
-
 # Parsing Image Annotation Files - PASCAL VOC (xml) format
 import xml.etree.ElementTree as ET
 # # Example Usage
@@ -297,7 +295,6 @@ import xml.etree.ElementTree as ET
 # xml_file = xml_files[0]
 #
 # image_path, boxes, class_ids = parse_annotation(xml_file, IMG_PATH, class_mapping)
-
 def parse_annotation(xml_file, img_path, class_mapping):
     '''
     Reads the XML file and finds the image name and path, iterates over each
@@ -340,14 +337,6 @@ def parse_annotation(xml_file, img_path, class_mapping):
     ]
     return image_path, boxes, class_ids
 
-# Print Grid Search Results
-def print_grid_search_results(search):
-    '''This methods prints Grid Search Results for given search algorithm'''
-    print("==== Grid Search Results ====")
-    print("best_estimator: ", search.best_estimator_)
-    print("best_params:    ", search.best_params_)
-    print("best_score:      {:.3f}".format(search.best_score_))
-
 # Save custom model
 # # Example Usage
 # save_custom_model(model, "custom_model")
@@ -364,101 +353,7 @@ def save_custom_model(model, name="model", verbose=1):
     if verbose > 0:
         print(f"{model_name} was saved successfully")
 
-# Print Classification Report - Classification Evaluation Method
-def print_eval_parameters(model, y_test, y_pred, labels):
-  '''This methods prints all evaluation parameters for classification models'''
-  print("====== " + type(model).__name__ +" model Evaluation metrics ======")
-  print("Accuracy of model:      {:.3f}".format(accuracy_score(y_test, y_pred)))                    # Accuracy score: (tp + tn) / (tp + fp + tn + fn)
-  print("Recall of model:        {:.3f}".format(recall_score(y_test, y_pred, average="micro")))     # Recall score: tp / (tp + fn)
-  print("Precision of model:     {:.3f}".format(precision_score(y_test, y_pred, average="micro")))  # Precision score: tp / (tp + fp)
-  print("F1 score of model:      {:.3f}".format(f1_score(y_test, y_pred, average="micro")))         # F1 score: 2 * (precision * recall) / (precision + recall)
-  # print("Mean accuracy of the model (Score):  {:.3f}".format(model.score(X_train_valid_scl, y_train_valid)))  # Print model Mean Accuracy (score)
-  print("Misclassification Number: ", (y_test != y_pred).sum())
-  print("\n====== " + type(model).__name__ +" model Detailed Classification Report ======")
-  # Print K Nearest Neighbor model's classification report for validation set
-  # Report contains; Precision, recal and F1 score values for each label and
-  # model's accuracy, macro and weighted average
-  print(classification_report(y_test, y_pred, target_names=labels))
-
-
-# Plot the validation and training data separately
-# Example Usage - Train a model: model_hist = model.fit(x_train, y_train, epochs=...)
-# plot_loss_curves(model_history)
-def plot_loss_curves(model_hist, all_in_one=False):
-  """
-  Returns separate loss curves for training and validation metrics.
-  """
-  # 
-  if all_in_one == True:  # Plots 'loss', 'accuracy', 'val_loss', 'val_accuracy' in the same graph
-    pd.DataFrame(model_hist.history).plot(figsize=(10, 7))
-  else:
-    loss = model_hist.history['loss']
-    val_loss = model_hist.history['val_loss']
-
-    accuracy = model_hist.history['accuracy']
-    val_accuracy = model_hist.history['val_accuracy']
-
-    epochs = range(len(model_hist.history['loss']))
-
-    # Plot loss
-    plt.plot(epochs, loss, label='training_loss')
-    plt.plot(epochs, val_loss, label='val_loss')
-    plt.title('Loss')
-    plt.xlabel('Epochs')
-    plt.legend()
-
-    # Plot accuracy
-    plt.figure()
-    plt.plot(epochs, accuracy, label='training_accuracy')
-    plt.plot(epochs, val_accuracy, label='val_accuracy')
-    plt.title('Accuracy')
-    plt.xlabel('Epochs')
-    plt.legend();
-
-# Model History Comparison (especially after Fine-tuning processes)
-def compare_historys(base_model_history, fine_tune_model_history, initial_epochs=5):
-    """
-    Compares two model history objects.
-    """
-    # Get base_model history measurements
-    acc = base_model_history.history["accuracy"]
-    loss = base_model_history.history["loss"]
-
-    print(len(acc))
-
-    val_acc = base_model_history.history["val_accuracy"]
-    val_loss = base_model_history.history["val_loss"]
-
-    # Combine base_model history with fine_tune_model_history
-    total_acc = acc + fine_tune_model_history.history["accuracy"]
-    total_loss = loss + fine_tune_model_history.history["loss"]
-
-    total_val_acc = val_acc + fine_tune_model_history.history["val_accuracy"]
-    total_val_loss = val_loss + fine_tune_model_history.history["val_loss"]
-
-    print(len(total_acc))
-    print(total_acc)
-
-    # Make plots
-    plt.figure(figsize=(8, 8))
-    plt.subplot(2, 1, 1)
-    plt.plot(total_acc, label='Training Accuracy')
-    plt.plot(total_val_acc, label='Validation Accuracy')
-    plt.plot([initial_epochs-1, initial_epochs-1],
-              plt.ylim(), label='Start Fine Tuning') # reshift plot around epochs
-    plt.legend(loc='lower right')
-    plt.title('Training and Validation Accuracy')
-
-    plt.subplot(2, 1, 2)
-    plt.plot(total_loss, label='Training Loss')
-    plt.plot(total_val_loss, label='Validation Loss')
-    plt.plot([initial_epochs-1, initial_epochs-1],
-              plt.ylim(), label='Start Fine Tuning') # reshift plot around epochs
-    plt.legend(loc='upper right')
-    plt.title('Training and Validation Loss')
-    plt.xlabel('epoch')
-    plt.show()
-
+# Change image file format to valid formats
 def change_img_file_format(img_dir, src_format, dest_format):
     formats = ['jpg', 'png', 'jpeg', 'JPG', 'JPEG', 'PNG']
     cnv_rgx_frmt = lambda frmt: '\.' + frmt + '$' 
@@ -592,6 +487,38 @@ def rgb_to_2D_label_map(mask_imgs, categories):
     
     return labels
 
+def gaussian_kernel(kernel_size, sigma, n_channels, dtype):
+    # https://stackoverflow.com/questions/59286171/gaussian-blur-image-in-dataset-pipeline-in-tensorflow
+    x = tf.range(-kernel_size // 2 + 1, kernel_size // 2 + 1, dtype=dtype)
+    g = tf.math.exp(-(tf.pow(x, 2) / (2 * tf.pow(tf.cast(sigma, dtype), 2))))
+    g_norm2d = tf.pow(tf.reduce_sum(g), 2)
+    g_kernel = tf.tensordot(g, g, axes=0) / g_norm2d
+    g_kernel = tf.expand_dims(g_kernel, axis=-1)
+    return tf.expand_dims(tf.tile(g_kernel, (1, 1, n_channels)), axis=-1)
+
+def apply_blur(image, kernel_size=3, sigma=2):
+    blur = gaussian_kernel(kernel_size, sigma, image.shape[-1], image.dtype)
+    image = tf.nn.depthwise_conv2d(image[None], blur, [1,1,1,1], 'SAME')
+    return image[0]
+
+def random_cutout_image(image, min_mask_edge=5, max_mask_edge=20, num_cuts=1, padding=5):
+    height, width, channels = image.shape
+    tensor_format = False
+    assert ((max_mask_edge < height // 2) and (max_mask_edge < width // 2))
+  
+    if not isinstance(image, np.ndarray):  # If input image is not numpy array (EagerTensor)
+      tensor_format = True
+      image = image.numpy()
+  
+    for cut in range(num_cuts):
+      mask_size = (rnd.randint(min_mask_edge, max_mask_edge), rnd.randint(min_mask_edge, max_mask_edge))
+      bbox = (rnd.randint(0, (height-mask_size[0]-padding)), rnd.randint(0, (width-mask_size[1]-padding)))  # padding=-5, no need to cut out areas that very close to corners of the image      
+      image[bbox[0]:(bbox[0]+mask_size[0]),bbox[1]:(bbox[1]+mask_size[1]),:3] = 0
+  
+    if tensor_format:  # Return as Tensor
+      return tf.convert_to_tensor(image, dtype=tf.float32)
+    else:
+      return image
 
 # Reference
 # https://github.com/keras-team
@@ -607,6 +534,8 @@ def rgb_to_2D_label_map(mask_imgs, categories):
 # https://medium.com/analytics-vidhya/image-anomaly-detection-using-autoencoders-ae937c7fd2d1
 # 
 # https://lilianweng.github.io/posts/2018-08-12-vae/
+#
+# https://stackoverflow.com/questions/59286171/gaussian-blur-image-in-dataset-pipeline-in-tensorflow
 
 
      

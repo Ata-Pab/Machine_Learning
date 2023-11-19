@@ -3,9 +3,12 @@ import tensorflow as tf
 from sklearn.manifold import TSNE
 import numpy as np
 import random as rnd
+import pandas as pd
 import itertools
 import cv2
 from google.colab.patches import cv2_imshow
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score # Evaluation metrics
+from sklearn.metrics import classification_report  # Precision, recall, f1-score metrics
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay  # Classifier Confusion Matrix visualization
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve
@@ -294,6 +297,30 @@ def show_ROC_score(self, y_test, pos_prob, kind='fp_tp', plot=False, label='Cust
     plt.legend()
     plt.show()
 
+# Print Grid Search Results
+def print_grid_search_results(search):
+    '''This methods prints Grid Search Results for given search algorithm'''
+    print("==== Grid Search Results ====")
+    print("best_estimator: ", search.best_estimator_)
+    print("best_params:    ", search.best_params_)
+    print("best_score:      {:.3f}".format(search.best_score_))
+
+# Print Classification Report - Classification Evaluation Method
+def print_eval_parameters(model, y_test, y_pred, labels):
+  '''This methods prints all evaluation parameters for classification models'''
+  print("====== " + type(model).__name__ +" model Evaluation metrics ======")
+  print("Accuracy of model:      {:.3f}".format(accuracy_score(y_test, y_pred)))                    # Accuracy score: (tp + tn) / (tp + fp + tn + fn)
+  print("Recall of model:        {:.3f}".format(recall_score(y_test, y_pred, average="micro")))     # Recall score: tp / (tp + fn)
+  print("Precision of model:     {:.3f}".format(precision_score(y_test, y_pred, average="micro")))  # Precision score: tp / (tp + fp)
+  print("F1 score of model:      {:.3f}".format(f1_score(y_test, y_pred, average="micro")))         # F1 score: 2 * (precision * recall) / (precision + recall)
+  # print("Mean accuracy of the model (Score):  {:.3f}".format(model.score(X_train_valid_scl, y_train_valid)))  # Print model Mean Accuracy (score)
+  print("Misclassification Number: ", (y_test != y_pred).sum())
+  print("\n====== " + type(model).__name__ +" model Detailed Classification Report ======")
+  # Print K Nearest Neighbor model's classification report for validation set
+  # Report contains; Precision, recal and F1 score values for each label and
+  # model's accuracy, macro and weighted average
+  print(classification_report(y_test, y_pred, target_names=labels))
+
 # This method prints predicted and actual labels and shows actual image
 def show_prediction_result(x_test, y_pred, y_test, labels, n_img=None):
     # If n_img is not set, find random index between 0 and x_test length
@@ -308,6 +335,84 @@ def show_prediction_result(x_test, y_pred, y_test, labels, n_img=None):
     plt.title("The image of "+ labels[y_test[n_img]] +" from the Dataset")
     # plt.imshow(x_test[n_img], cmap=plt.cm.gray_r)
     plt.imshow(x_test[n_img])
+    plt.show()
+
+# Plot the validation and training data separately
+# Example Usage - Train a model: model_hist = model.fit(x_train, y_train, epochs=...)
+# plot_loss_curves(model_history)
+def plot_loss_curves(model_hist, all_in_one=False):
+  """
+  Returns separate loss curves for training and validation metrics.
+  """
+  # 
+  if all_in_one == True:  # Plots 'loss', 'accuracy', 'val_loss', 'val_accuracy' in the same graph
+    pd.DataFrame(model_hist.history).plot(figsize=(10, 7))
+  else:
+    loss = model_hist.history['loss']
+    val_loss = model_hist.history['val_loss']
+
+    accuracy = model_hist.history['accuracy']
+    val_accuracy = model_hist.history['val_accuracy']
+
+    epochs = range(len(model_hist.history['loss']))
+
+    # Plot loss
+    plt.plot(epochs, loss, label='training_loss')
+    plt.plot(epochs, val_loss, label='val_loss')
+    plt.title('Loss')
+    plt.xlabel('Epochs')
+    plt.legend()
+
+    # Plot accuracy
+    plt.figure()
+    plt.plot(epochs, accuracy, label='training_accuracy')
+    plt.plot(epochs, val_accuracy, label='val_accuracy')
+    plt.title('Accuracy')
+    plt.xlabel('Epochs')
+    plt.legend();
+
+# Model History Comparison (especially after Fine-tuning processes)
+def compare_historys(base_model_history, fine_tune_model_history, initial_epochs=5):
+    """
+    Compares two model history objects.
+    """
+    # Get base_model history measurements
+    acc = base_model_history.history["accuracy"]
+    loss = base_model_history.history["loss"]
+
+    print(len(acc))
+
+    val_acc = base_model_history.history["val_accuracy"]
+    val_loss = base_model_history.history["val_loss"]
+
+    # Combine base_model history with fine_tune_model_history
+    total_acc = acc + fine_tune_model_history.history["accuracy"]
+    total_loss = loss + fine_tune_model_history.history["loss"]
+
+    total_val_acc = val_acc + fine_tune_model_history.history["val_accuracy"]
+    total_val_loss = val_loss + fine_tune_model_history.history["val_loss"]
+
+    print(len(total_acc))
+    print(total_acc)
+
+    # Make plots
+    plt.figure(figsize=(8, 8))
+    plt.subplot(2, 1, 1)
+    plt.plot(total_acc, label='Training Accuracy')
+    plt.plot(total_val_acc, label='Validation Accuracy')
+    plt.plot([initial_epochs-1, initial_epochs-1],
+              plt.ylim(), label='Start Fine Tuning') # reshift plot around epochs
+    plt.legend(loc='lower right')
+    plt.title('Training and Validation Accuracy')
+
+    plt.subplot(2, 1, 2)
+    plt.plot(total_loss, label='Training Loss')
+    plt.plot(total_val_loss, label='Validation Loss')
+    plt.plot([initial_epochs-1, initial_epochs-1],
+              plt.ylim(), label='Start Fine Tuning') # reshift plot around epochs
+    plt.legend(loc='upper right')
+    plt.title('Training and Validation Loss')
+    plt.xlabel('epoch')
     plt.show()
 
 def get_misclassified_indexes(y_test, y_pred):
