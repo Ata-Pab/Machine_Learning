@@ -120,6 +120,8 @@ def contrastive_loss(y_true, y_pred, margin=1):
     margin_square = tf.square(tf.maximum(margin - (y_pred), 0))
     return tf.reduce_mean((1 - y_true) * margin_square + (y_true) * square_pred)
 
+'''
+...Deprecated
 def triplet_loss(self, y_true, y_pred):
     anchor, positive, negative = y_pred[0], y_pred[1], y_pred[2]
     #pos_dist = K.sum(K.square(anchor-positive), axis=1)
@@ -133,6 +135,35 @@ def triplet_loss(self, y_true, y_pred):
     # return K.maximum(calc_loss, 0.0) 
     #return K.maximum(calc_loss, K.epsilon())
     return tf.maximum(calc_loss, tf.keras.backend.epsilon())
+'''
+
+def triplet_loss(self, anchor_features, positive_features, negative_features):
+    '''
+    Triplet Loss
+    L(A, P, N) = max(‖f(A) - f(P)‖² - ‖f(A) - f(N)‖² + margin, 0)
+    In Distance Layer: ap_distance = ‖f(A) - f(P)‖², an_distance = ‖f(A) - f(N)‖²
+    '''
+    ap_distance = tf.reduce_sum(tf.square(anchor_features - positive_features), -1)
+    an_distance = tf.reduce_sum(tf.square(anchor_features - negative_features), -1)
+
+    # Computing the Triplet Loss by subtracting both distances and
+    # making sure we don't get a negative value.
+    loss = ap_distance - an_distance
+    loss = tf.maximum(loss + self._margin, tf.keras.backend.epsilon())
+    return loss
+
+def binary_cross_entropy_loss(y_true, y_pred, from_logits=False):
+    '''
+    Binary Cross-Entropy Loss= -(1/N ∑(i to N)[yi⋅log(pi) + (1-yi)⋅log(1-pi)])
+    '''
+    eps = tf.keras.backend.epsilon()
+    # Ensure the predicted values are within the range (0, 1) using a sigmoid activation
+    if from_logits:
+        y_pred = tf.math.sigmoid(y_pred)
+
+    # Compute binary cross-entropy loss
+    loss = -tf.reduce_mean(y_true * tf.math.log(y_pred + eps) + (1 - y_true) * tf.math.log(1 - y_pred + eps))
+    return loss
 
 def focal_loss(y_true, y_pred, alpha=1.0, gamma=2.0):    
     '''
