@@ -573,6 +573,25 @@ def create_experimental_output(experiment_dict, save_dir):
     except:
         print("An error occurred while trying to create experimental output")
 
+# Save experiment checkpoints method should be used in custom train function
+def save_experiment_checkpoints(model_list, epoch, save_dir):
+    '''
+    model_list: List of models used in a custom model
+    epoch: current epoch
+    save_dir: model weight save directory
+    '''
+    for model in model_list:
+        model.save_weights(os.path.join(save_dir, (model.name + "_epoch_" + str(epoch) + '.h5')))
+
+def load_model_experiment_weights(model_list, epoch, load_dir):
+    '''
+    model_list: List of models used in a custom model
+    epoch: current epoch
+    load_dir: model weight load directory
+    '''
+    for model in model_list:
+        model.load_weights(os.path.join(load_dir, (model.name + "_epoch_" + str(epoch) + '.h5')))
+
 # Reference
 # https://github.com/keras-team
 # 
