@@ -549,8 +549,10 @@ def make_experiment_dir(data_dir):
     os.makedirs(save_dir)
     return save_dir
 
-def write_dict_to_file(_dict, file_dir, sep=": "):
+def write_dict_to_file(_dict, file_dir, sep=": ", head=None):
     text = []
+    if head != None:
+        text.append(head)
     for key in _dict:
         row = str(key)
         text.append(row + sep + str(_dict[row]))
@@ -563,7 +565,9 @@ def write_dict_to_file(_dict, file_dir, sep=": "):
 def create_experimental_output(experiment_dict, save_dir):
     try:
         save_dir = make_experiment_dir(save_dir)
-        write_dict_to_file(experiment_dict, (save_dir + "/experiment.txt"))
+        exp_id = save_dir.split("experiment_")[1]  # Get experiment ID
+        exp_id = "EXPERIMENT_" + str(exp_id) + " CONFIG\n"
+        write_dict_to_file(experiment_dict, (save_dir + "/experiment.txt"), head=exp_id)
         return save_dir
     except:
         print("An error occurred while trying to create experimental output")
