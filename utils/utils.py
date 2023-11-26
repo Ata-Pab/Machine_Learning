@@ -540,8 +540,9 @@ def random_cutout_image(image, min_mask_edge=5, max_mask_edge=20, num_cuts=1, pa
 def make_experiment_dir(data_dir):
     exp_num = 0
 
-    for dirpath, dirnames, filenames in os.walk(data_dir):
-        if "experiment_" in dirpath:
+    for folder in os.listdir(data_dir):
+        dirpath = os.path.join(data_dir, folder)
+        if (os.path.isdir(dirpath)) and ("experiment_" in dirpath):
             exp_id = int(dirpath.split("experiment_")[1])  # Get experiment ID
             if exp_num < exp_id:
                 exp_num = exp_id
