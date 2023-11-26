@@ -160,6 +160,8 @@ def create_dataset_pipeline(img_files, batch_size, img_size=None, aspect=False, 
         # Apply specified augmentation sequential layer to the image
         def apply_augmentation(image):
             image = aug_layer(image, training=True)  # Apply data augmentation layers
+            if scl:
+                image = tf.clip_by_value(image, clip_value_min=0.0, clip_value_max=1.0)
             return image
         
         temp_dataset = dataset
