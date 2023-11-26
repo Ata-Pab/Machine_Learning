@@ -168,7 +168,7 @@ def create_dataset_pipeline(img_files, batch_size, img_size=None, aspect=False, 
         for _ in range(data_aug_power):
           augmented_dataset = tf.data.Dataset.from_tensor_slices(np.array(list(temp_dataset.map(apply_augmentation))))
           dataset = dataset.concatenate(augmented_dataset)
-          
+
     # Get image pairs for data pipeline (as an autoencoder input) - Do not create image pairs if you train the model with GANs
     if duplicate:
       dataset = dataset.map(lambda image: (image, image), num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -536,6 +536,37 @@ def random_cutout_image(image, min_mask_edge=5, max_mask_edge=20, num_cuts=1, pa
       return tf.convert_to_tensor(image, dtype=tf.float32)
     else:
       return image
+    
+def make_experiment_dir(data_dir):
+    exp_num = 0
+
+    for dirpath, dirnames, filenames in os.walk(data_dir):
+        if "experiment_" in dirpath:
+            exp_id = int(dirpath.split("experiment_")[1])  # Get experiment ID
+            if exp_num < exp_id:
+                exp_num = exp_id
+    save_dir = data_dir + "/experiment_" + str(exp_num+1)
+    os.makedirs(save_dir)
+    return save_dir
+
+def write_dict_to_file(_dict, file_dir, sep=": "):
+    text = []
+    for key in _dict:
+        row = str(key)
+        text.append(row + sep + str(_dict[row]))
+
+    with open(file_dir, 'w') as f:
+        for line in text:
+            f.write(line)
+            f.write('\n')
+
+def create_experimental_output(experiment_dict, save_dir):
+    try:
+        save_dir = make_experiment_dir(save_dir)
+        write_dict_to_file(experiment_dict, (save_dir + "/experiment.txt"))
+        return save_dir
+    except:
+        print("An error occurred while trying to create experimental output")
 
 # Reference
 # https://github.com/keras-team
