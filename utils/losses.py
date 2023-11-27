@@ -18,33 +18,34 @@ def show_perceptual_layers_info(model, layers):
 
 # Init content loss with default VGG16 pre-trained model
 def init_perceptual_loss(perp_loss_model='VGG16', perp_layers=None, verbose=0):
-  # Set perceptual model
-  if perp_loss_model == 'VGG19':
-    perp_model = tf.keras.applications.VGG19(input_shape=(224,224,3))
-  elif perp_loss_model == 'RESNET50V2':
-    perp_model = tf.keras.applications.ResNet50V2(include_top=False,
-                    weights='imagenet', input_shape=(224, 224, 3))
-  else:
-    perp_model = tf.keras.applications.VGG16(input_shape=(224,224,3))
+    # Set perceptual model
+    if perp_loss_model == 'VGG19':
+      perp_model = tf.keras.applications.VGG19(input_shape=(224,224,3))
+    elif perp_loss_model == 'RESNET50':
+      perp_model = tf.keras.applications.ResNet50(include_top=False,
+                      weights='imagenet', input_shape=(224, 224, 3))
+    elif perp_loss_model == 'RESNET50V2':
+      perp_model = tf.keras.applications.ResNet50V2(include_top=False,
+                      weights='imagenet', input_shape=(224, 224, 3))
+    else:
+      perp_model = tf.keras.applications.VGG16(input_shape=(224, 224, 3))
 
-  # perp_model.trainable = False  # No need to set trainable parameter as False
+    # perp_model.trainable = False  # No need to set trainable parameter as False
 
-  if verbose > 0:
-    show_perceptual_layers_info(perp_model, perp_layers)
+    if verbose > 0:
+      show_perceptual_layers_info(perp_model, perp_layers)
 
-  # Set perceptual loss output layers
-  if perp_layers != None:
+    # Set perceptual loss output layers
+    assert (perp_layers != None)
     modelOutputs = [perp_model.layers[i].output for i in perp_layers]
-  else:
-    modelOutputs = perp_model.layers[-2].output  # Get last layer of the model before prediction layer
 
-  model = Model(perp_model.inputs, modelOutputs)
+    model = Model(perp_model.inputs, modelOutputs)
 
-  if verbose > 1:
-      print("\n")
-      model.summary()
+    if verbose > 1:
+        print("\n")
+        model.summary()
 
-  return model
+    return model
 
 def dice_coef(y_true, y_pred):
     y_true_f = layers.Flatten()(y_true)

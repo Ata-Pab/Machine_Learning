@@ -592,6 +592,25 @@ def load_model_experiment_weights(model_list, epoch, load_dir):
     for model in model_list:
         model.load_weights(os.path.join(load_dir, (model.name + "_epoch_" + str(epoch) + '.h5')))
 
+def remove_training_weights_except_last_epoch(weights_dir):
+    max_trained_epoch = 0
+    weights_will_be_removed = []
+    for path in os.listdir(weights_dir):
+        path = os.path.join(weights_dir, path)
+        if (os.path.isfile(path)) and (path[-3:] == '.h5'):
+            assert (len(path.split("_")) != 0)
+            weights_will_be_removed.append(path)
+            epoch_num = int((path.split("_")[-1])[:-3])  # Get trained epoch code
+
+            if epoch_num > max_trained_epoch:
+                max_trained_epoch = epoch_num
+
+    for weight_file in weights_will_be_removed:
+        if not(("_" + str(max_trained_epoch) + ".h5") in weight_file):
+            user = input(f"{weight_file} will be removed. [y/n]: ")
+            if user == 'y':
+                os.remove(weight_file)
+
 # Reference
 # https://github.com/keras-team
 # 
