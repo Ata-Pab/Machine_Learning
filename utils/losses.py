@@ -16,7 +16,7 @@ def show_perceptual_layers_info(model, layers):
 
     print("\nLast layer of the pre-trained model: ", model.layers[-1].name)
 
-# Init content loss with default VGG16 pre-trained model
+# Init content/perceptual loss with pre-trained model
 def init_perceptual_loss(perp_loss_model='VGG16', perp_layers=None, verbose=0):
     # Set perceptual model
     if perp_loss_model == 'VGG19':
@@ -46,6 +46,25 @@ def init_perceptual_loss(perp_loss_model='VGG16', perp_layers=None, verbose=0):
         model.summary()
 
     return model
+
+class PerceptualLoss(tf.keras.losses.Loss):
+  def __init__(self, perp_loss_model='VGG16', perc_layers=None, verbose=0):
+    super(PerceptualLoss, self).__init__()
+    assert (perc_layers != None)
+    self._perc_layers = perc_layers
+    self._perp_loss_model = init_perceptual_loss(perp_loss_model, self._perc_layers, verbose)
+    self._perceptual_loss = []
+
+  def call(self, y_true, y_pred):
+    y_true= self._perp_loss_model(tf.image.resize(y_true, (224, 224)))
+    y_pred= self._perp_loss_model(tf.image.resize(y_pred, (224, 224)))
+
+    for idx, (y_true_layer, y_pred_layer) in enumerate(zip(y_true, y_pred)):
+      w, h, d = y_pred_layer[0].shape
+      self._perceptual_loss.append((1/(w*h*d))*tf.reduce_mean(tf.square(y_true_layer - y_pred_layer)))
+      #self._perceptual_loss.append((1/(w*h*d))*tf.reduce_sum(tf.square(y_true_layer - y_pred_layer)))
+
+    return tf.reduce_sum(self._perceptual_loss)
 
 def dice_coef(y_true, y_pred):
     y_true_f = layers.Flatten()(y_true)
