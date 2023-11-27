@@ -29,7 +29,7 @@ def show_image_samples_from_batch(dataset, grid=(4,4), figsize=(10, 10)):
       plt.subplot(grid[0], grid[1], index + 1)
       plt.imshow(image[:, :, :])
       plt.axis('off')
-      if index >= (len(image_batch)-1):
+      if index >= ((grid[0]*grid[1])-1):
         break
 
 # Display pixel wise imag difference (Valid inputs: img paths or img arrays)
