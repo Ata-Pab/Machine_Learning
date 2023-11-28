@@ -56,6 +56,8 @@ class PerceptualLoss(tf.keras.losses.Loss):
     self._perceptual_loss = []
 
   def call(self, y_true, y_pred):
+    self._perceptual_loss = []
+    
     y_true= self._perp_loss_model(tf.image.resize(y_true, (224, 224)))
     y_pred= self._perp_loss_model(tf.image.resize(y_pred, (224, 224)))
 
