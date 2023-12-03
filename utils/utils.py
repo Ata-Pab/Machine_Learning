@@ -480,6 +480,9 @@ def create_labels_for_mask(mask, categories):
 
   return label_seg[:,:,0]  # Just return the first channel
 
+def cvt_color_BGR2RGB(img):
+    return tf.reverse(img, axis=[-1])
+
 # Creates a label map for the given masks with class categories
 def rgb_to_2D_label_map(mask_imgs, categories):
     labels = []
