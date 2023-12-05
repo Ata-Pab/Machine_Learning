@@ -92,6 +92,27 @@ def walk_through_dir(data_dir):
     for dirpath, dirnames, filenames in os.walk(data_dir):
       print(f"There are {len(dirnames)} directories and {len(filenames)} images in '{dirpath}'.")
 
+def _preprocess_image(image, img_size=None, aspect=False, scl=True, num_channels=3, rot=ROT_0):
+    # Resize the image (to the same size our model was trained on)
+    if img_size != None:
+      if aspect == True:
+        width = image.shape[1]  # Get width of the image
+        ratio = width / float(width)
+        img_size = (width, int(image.shape[0] * ratio))
+
+      image = tf.image.resize(image, size = img_size, preserve_aspect_ratio=False)
+
+    # Rotate images 270 degree due to capturing photos in vertical position with iPhone
+    if rot != ROT_0:
+        image = tf.image.rot90(image, k=rot)
+
+    # Cast to float32
+    image = tf.cast(image, tf.float32)
+
+    # Rescale the image (get all values between 0 and 1)
+    if scl == True: image = image / 255.
+    return image
+
 # Create a function to import an image and resize it to be able to be used with our model
 def load_images(filename, img_size=None, aspect=False, scl=True, num_channels=3, rot=ROT_0, accelerator='GPU'):
     # Read in target file (an image)
@@ -105,31 +126,38 @@ def load_images(filename, img_size=None, aspect=False, scl=True, num_channels=3,
     # (our model is trained on images with 3 colour channels and sometimes images have 4 colour channels)
     img = tf.image.decode_image(img, channels=num_channels)
 
-    # Resize the image (to the same size our model was trained on)
-    if img_size != None:
-      if aspect == True:
-        width = img.shape[1]  # Get width of the image
-        ratio = width / float(width)
-        img_size = (width, int(img.shape[0] * ratio))
-
-      img = tf.image.resize(img, size = img_size, preserve_aspect_ratio=False)
-
-    # Rotate images 270 degree due to capturing photos in vertical position with iPhone
-    if rot != ROT_0:
-        img = tf.image.rot90(img, k=rot)
-
-    # Cast to float32
-    img = tf.cast(img, tf.float32)
-
-    # Rescale the image (get all values between 0 and 1)
-    if scl == True: img = img / 255.
-    return img
+    return _preprocess_image(img, img_size, aspect, scl, num_channels, rot)
 
 def load_and_prepare_images(img_file_list, img_size=None, aspect=False, scl=None, num_channels=3, rot=ROT_0, accelerator='GPU'):
+    '''
+    Load and prepare images for Dataset pipeline
+    img_file_list: Image file list
+    img_size: Resize image (h,w)
+    aspect: Keep aspect ratio of the image or not
+    scl= Scale image. default True
+    num_channels= number of channels. default 3
+    rot= Rotate all images in the dataset. default ROT_0
+    '''
     def process_images(filename):
         return load_images(filename, img_size, aspect, scl, num_channels, rot, accelerator)
 
     return np.array(list(map(process_images, img_file_list)))
+
+
+def load_and_prepare_images_from_tensor_slices(images, img_size=None, aspect=False, scl=None, num_channels=3, rot=ROT_0, accelerator='GPU'):
+    '''
+    Load and prepare images for Dataset pipeline
+    images: Image Numpy array
+    img_size: Resize image (h,w)
+    aspect: Keep aspect ratio of the image or not
+    scl= Scale image. default True
+    num_channels= number of channels. default 3
+    rot= Rotate all images in the dataset. default ROT_0
+    '''
+    def process_images(image):
+        return _preprocess_image(image, img_size, aspect, scl, num_channels, rot, accelerator)
+
+    return np.array(list(map(process_images, images)))
 
 # Create a new dataset that includes both the original and augmented images
 def concatenate_images(original_images, augmented_images):
