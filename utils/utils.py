@@ -155,7 +155,7 @@ def load_and_prepare_images_from_tensor_slices(images, img_size=None, aspect=Fal
     rot= Rotate all images in the dataset. default ROT_0
     '''
     def process_images(image):
-        return _preprocess_image(image, img_size, aspect, scl, num_channels, rot, accelerator)
+        return _preprocess_image(image, img_size, aspect, scl, num_channels, rot)
 
     return np.array(list(map(process_images, images)))
 
