@@ -6,6 +6,7 @@ import random as rnd
 import pandas as pd
 import itertools
 import cv2
+import matplotlib.cm as cm
 from google.colab.patches import cv2_imshow
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score # Evaluation metrics
 from sklearn.metrics import classification_report  # Precision, recall, f1-score metrics
@@ -485,6 +486,124 @@ def visualize_feature_matching(org_img_file, ref_img_file):
   # Draw matches
   matching_result = cv2.drawMatches(original_img, kp1, reference_img, kp2, good_matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
   cv2_imshow(matching_result)
+
+
+class GradCAM:
+  '''
+  GRADCAM class
+  model: Model object with trained weights
+  layer_name: specified layer to be extracting gradients from
+  class_id: label
+  alpha: transparency factor for a combination of heatmap and original image
+  Reference: https://github.com/wiqaaas/youtube/blob/master/Deep_Learning_Using_Tensorflow/Demystifying_CNN/Gradient%20Visualization.ipynb
+
+  Example usage:
+  vgg16_model = tf.keras.applications.VGG16(weights="imagenet")
+  ...
+  preds = vgg16_model.predict(image)
+  class_id = np.argmax(preds[0])
+  ...
+  gradCAM = GradCAM(vgg16_model)
+  (heatmap, output) = gradCAM(image, original_image, class_id, alpha=0.8)
+  plt.imshow(output)
+  '''
+  def __init__(self, model, layer_name=None):
+    self.model = model
+    self.layer_name = layer_name
+
+    if self.layer_name is None:
+      self.layer_name = self.find_target_layer()
+
+  def find_target_layer(self):
+    # Find the last convolutional layer of the model before Global Average Pooling
+    for layer in reversed(self.model.layers):
+        # check to see if the layer has a 4D output
+        if len(layer.output.shape) == 4:
+            return layer.name
+    # otherwise, we could not find a 4D layer
+    raise ValueError("Could not find 4D layer. Cannot apply GradCAM.")
+  
+  def __call__(self, model_input_img, original_image, class_id, alpha):
+    heatmap = self.compute_heatmap(model_input_img, class_id)
+    return self.overlay_heatmap(heatmap, original_image, alpha=alpha) 
+
+  def compute_heatmap(self, image, class_id, eps=1e-8):
+    self.class_id = class_id
+    # Construct gradient model by supplying the inputs to the pre-trained model
+    # (The output of the final 4D layer in the network, and the output of the
+    # softmax activations from the model
+    gradModel = tf.keras.Model(inputs=[self.model.inputs], outputs= [self.model.get_layer(self.layer_name).output, self.model.output])
+
+    # Compute the gradients
+    with tf.GradientTape() as tape:
+      inputs = tf.cast(image, tf.float32)  # cast the image tensor to a float-32
+      (last_conv_layer_output, preds) = gradModel(inputs)
+      loss = preds[:, self.class_id]
+
+    # Compute the gradients for last convolutional layer
+    grads = tape.gradient(loss, last_conv_layer_output)
+
+    # Compute the guided gradients
+    cast_conv_layer_output = tf.cast(last_conv_layer_output > 0, tf.float32)
+    cast_grads = tf.cast(grads > 0, tf.float32)
+    guided_grads = cast_conv_layer_output * cast_grads * grads
+
+    # the convolution and guided gradients have a batch dimension
+    # (which we don't need) so let's grab the volume itself and
+    # discard the batch
+    last_conv_layer_output = last_conv_layer_output[0]
+    guided_grads = guided_grads[0]
+
+    # compute the average of the gradient values, and using them
+    # as weights, compute the ponderation of the filters with
+    # respect to the weights
+    weights = tf.reduce_mean(guided_grads, axis=(0, 1))
+    cam = tf.reduce_sum(tf.multiply(weights, last_conv_layer_output), axis=-1)
+
+    # grab the spatial dimensions of the input image and resize the output class
+    # activation map to match the input image dimensions
+    (w, h) = (image.shape[2], image.shape[1])
+    heatmap = cv2.resize(cam.numpy(), (w, h))
+
+    # For visualization purpose normalize the heatmap such that
+    # all values lie in the range [0, 1], scale the resulting values to the
+    # range [0, 255], and then convert to an unsigned 8-bit integer
+    numer = heatmap - np.min(heatmap)
+    denom = (heatmap.max() - heatmap.min()) + eps
+    heatmap = numer / denom
+    heatmap = (heatmap * 255).astype("uint8")
+
+    # return the resulting heatmap to the calling function
+    return heatmap
+
+  # Combine Grad model output and the original image
+  def overlay_heatmap(self, heatmap, image, alpha=0.5, colormap=cv2.COLORMAP_JET):
+    # Use jet colormap to colorize heatmap
+    jet = cm.get_cmap("jet")  # cm.get_cmap will be deprecated after few releases
+    # jet = matplotlib.colormaps.get_cmap("jet")
+
+    # Use RGB values of the colormap
+    jet_colors = jet(np.arange(256))[:, :3]  # First 3 channel: R, G, B
+    jet_heatmap = jet_colors[heatmap]
+
+    # Create an image with RGB colorized heatmap
+    jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
+    jet_heatmap = jet_heatmap.resize((image.shape[1], image.shape[0]))
+    jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
+
+    # Superimpose/Combine the heatmap on original image
+    superimposed_img = jet_heatmap * alpha + image
+    superimposed_img = tf.keras.utils.array_to_img(superimposed_img)
+
+    # Save the superimposed image
+    # superimposed_img.save(cam_path)
+
+    # apply the supplied color map to the heatmap and then
+    # overlay the heatmap on the input image
+    #heatmap = cv2.applyColorMap(heatmap, colormap)
+    #superimposed_img = cv2.addWeighted(image, alpha, heatmap, 1 - alpha, 0)
+
+    return (heatmap, superimposed_img)
 
 # Reference
 # https://github.com/keras-team
