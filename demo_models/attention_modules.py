@@ -21,6 +21,81 @@ def logsumexp_2d(tensor):
     outputs = s + tf.math.log(tf.reduce_sum(tf.math.exp(tensor_flatten - s), axis=2, keepdims=True))
     return outputs
 
+class Conv2DLayerBN(tf.keras.layers.Conv2D):
+    '''
+    act_end: Activation function for end of the conv + BN -> conv + BN + Act
+    batch_norm: Batch normalization
+    lrelu_alpha: Leaky ReLU activation function alpha
+    '''
+    def __init__(self, filters, kernel_size, strides=(1, 1), padding='valid', 
+                 activation=None,act_end=None, batch_norm=True, lrelu_alpha=0.3, 
+                 *args, **kwargs):
+        # Call the constructor of the base class (tf.keras.layers.Conv2D)
+        super(Conv2DLayerBN, self).__init__(
+            filters=filters,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            activation=activation,
+            *args,
+            **kwargs
+        )
+        act_funcs = ["relu", "lrelu", "sigmoid"]
+        assert((act_end == None) or (act_end in act_funcs))
+
+        self.batch_norm = tf.keras.layers.BatchNormalization(epsilon=1e-5, momentum=0.01) if batch_norm else None
+
+        if act_end == "relu":
+            #act_func = tf.nn.relu()
+            self.activation = tf.keras.layers.Activation(act_end)
+        elif act_end == "lrelu":
+            act_func = tf.nn.leaky_relu(alpha=lrelu_alpha)
+            self.activation = tf.keras.layers.Activation(act_func)
+        elif act_end == "sigmoid":
+            #act_func = tf.keras.activations.sigmoid()
+            self.activation = tf.keras.layers.Activation(act_end)
+        else:
+            self.activation = None
+
+        # ..Add additional customization or modifications...
+
+        # __________________________________________________
+
+    def build(self, input_shape):
+        # Add any additional setup or customization for the layer's weights here
+        # This method is called the first time the layer is used, based on the input_shape.
+
+        # Make sure to call the build method of the base class
+        super(Conv2DLayerBN, self).build(input_shape)
+
+    def call(self, inputs):
+        # You can access the weights using self.weights and perform computations using TensorFlow operations.
+        # Example:
+        # output = tf.nn.conv2d(inputs, self.kernel, strides=self.strides, padding=self.padding)
+        # if self.activation is not None:
+        #     output = self.activation(output)
+        # return output
+
+        # ...Add forward pass activations here...
+
+        # ______________________________________
+        x = super(Conv2DLayerBN, self).call(inputs)
+        if self.batch_norm is not None:
+            x = self.batch_norm(x)
+        if self.activation is not None:
+            x = self.activation(x)
+        return x
+
+    def get_config(self):
+        # ...Add additional configuration parameters for serialization...
+
+        # _______________________________________________________________
+        # This method is used to save the configuration of the layer when the model is saved.
+        config = super(Conv2DLayerBN, self).get_config()
+        # Add your custom parameters to config dictionary
+        return config
+
+
 class CustomConv2DLayer(tf.keras.layers.Layer):
     def __init__(self, filters, kernel_size=3, stride=1, padding=0, dilation=1, groups=1, act=None, batch_norm=True, bias=False, lrelu_alpha=0.3):
         super(CustomConv2DLayer, self).__init__()
