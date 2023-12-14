@@ -18,12 +18,15 @@ import tensorflow as tf
 
 class Conv2DLayerBN(tf.keras.layers.Conv2D):
     '''
+    Conv2DLayerBN
+    2D Convolutional layer with batch normalization, activation end and dropout features
     act_end: Activation function for end of the conv + BN -> conv + BN + Act
     batch_norm: Batch normalization
     lrelu_alpha: Leaky ReLU activation function alpha
+    dropout_end: Dropout rate (0.0 to 1.0) at the end of conv. block -> conv + BN + Act + Dropout
     '''
     def __init__(self, filters, kernel_size, strides=(1, 1), padding='valid', 
-                 activation=None,act_end=None, batch_norm=True, lrelu_alpha=0.3, 
+                 activation=None, act_end=None, batch_norm=True, lrelu_alpha=0.3, 
                  dropout_end=0.0, *args, **kwargs):
         # Call the constructor of the base class (tf.keras.layers.Conv2D)
         super(Conv2DLayerBN, self).__init__(
@@ -94,36 +97,61 @@ class Conv2DLayerBN(tf.keras.layers.Conv2D):
         # Add your custom parameters to config dictionary
         return config
 
+class Conv2DLayerRes(tf.keras.layers.Layer):
+    '''
+    Conv2DLayerRes
+    2D Residual Convolutional layer with batch normalization, activation end 
+    and dropout features.
+    There are two options for Residual convolutional layer.
+    Either put activation function before the addition with shortcut
+    or after the addition (which would be as proposed in the original resNet).
 
-class CustomConv2DLayer(tf.keras.layers.Layer):
-    def __init__(self, filters, kernel_size=3, stride=1, padding=0, dilation=1, groups=1, act=None, batch_norm=True, bias=False, lrelu_alpha=0.3):
-        super(CustomConv2DLayer, self).__init__()
-        assert ((act == None) or (act == "relu") or (act == "lrelu"))
+    1. conv + BN + Act + conv + BN + Act + shortcut + BN + shortcut + BN
+    2. conv + BN + Act + conv + BN + shortcut + BN + shortcut + BN + Act
 
-        self.conv = tf.keras.layers.Conv2D(filters=filters,
-                                           kernel_size=kernel_size,
-                                           strides=stride,
-                                           padding='valid' if padding == 0 else 'same',
-                                           dilation_rate=dilation,
-                                           groups=groups,
-                                           use_bias=bias)
+    ref: https://arxiv.org/ftp/arxiv/papers/1802/1802.06955.pdf
 
-        self.batch_norm = tf.keras.layers.BatchNormalization(epsilon=1e-5, momentum=0.01) if batch_norm else None
+    act_end: Activation function for end of the conv + BN -> conv + BN + Act
+    batch_norm: Batch normalization
+    lrelu_alpha: Leaky ReLU activation function alpha
+    dropout_end: Dropout rate (0.0 to 1.0) at the end of conv. block -> conv + BN + Act + Dropout
+    '''
+    def __init__(self, filters, kernel_size, strides=(1, 1), padding='valid', 
+                 activation=None, act_end=None, batch_norm=True, lrelu_alpha=0.3, 
+                 dropout_end=0.0, *args, **kwargs):
+        # Call the constructor of the base class (Conv2DLayerBN)
+        super(Conv2DLayerRes, self).__init__()
 
-        if act == "relu":
-            self.activation = tf.keras.layers.ReLU()
-        elif act == "lrelu":
-            self.activation = tf.keras.layers.LeakyReLU(alpha=lrelu_alpha)
-        else:
-            self.activation = None
+        act_funcs = ["relu", "lrelu", "sigmoid"]
+        assert((act_end == None) or (act_end in act_funcs))
+        assert((dropout_end >= 0.0) and (dropout_end <= 1.0))
 
-    def call(self, x):
-        x = self.conv(x)
-        if self.batch_norm is not None:
-            x = self.batch_norm(x)
-        if self.activation is not None:
-            x = self.activation(x)
-        return x
+        # 1. Conv2D: conv + BN + Activation
+        self.firstConv2DLayer = Conv2DLayerBN(filters=filters, kernel_size=kernel_size,
+                                                strides=strides, padding=padding,
+                                                activation=activation, act_end=act_end, 
+                                                batch_norm=batch_norm, lrelu_alpha=lrelu_alpha,
+                                                dropout_end=0.0)
+        # 2. Conv2D: conv + BN + Dropout
+        self.secondConv2DLayer = Conv2DLayerBN(filters=filters, kernel_size=kernel_size,
+                                                strides=strides, padding=padding,
+                                                activation=activation, act_end=None, 
+                                                batch_norm=batch_norm, dropout_end=dropout_end)
+        # 3. ShortCutConv2D: conv + BN (kernel_size= (1,1))
+        self.shortcutConv2DLayer = Conv2DLayerBN(filters=filters, kernel_size=1,
+                                                strides=strides, padding=padding,
+                                                activation=None, act_end=None, 
+                                                batch_norm=batch_norm, dropout_end=dropout_end)
+
+    def call(self, inputs):
+        # ...Add forward pass activations here...
+
+        # ______________________________________
+        conv_res = self.firstConv2DLayer(inputs)
+        conv_res = self.secondConv2DLayer(conv_res)
+        shortcut = self.shortcutConv2DLayer(inputs)
+        residual = tf.keras.layers.Add()([shortcut, conv_res])
+        return tf.keras.layers.Activation('relu')(residual)
 
 class ChannelPool(tf.keras.layers.Layer):
     '''
@@ -176,7 +204,7 @@ class SpatialGate(tf.keras.layers.Layer):
     def call(self, inputs):
         x_pool = self.channelPooling(inputs)
         attention = self.spatialConv2D(x_pool)
-        return tf.keras.layers.multiply([inputs, attention])
+        return tf.keras.layers.Multiply()([inputs, attention])
 
 #class Flatten(tf.keras.layers.Layer):
 #    def call(self, x):
