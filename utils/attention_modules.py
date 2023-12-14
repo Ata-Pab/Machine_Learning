@@ -329,3 +329,63 @@ class CBAM(tf.keras.layers.Layer):
         if self.sam_block:
             x_out = self.SpatialGate(x_out)
         return x_out
+    
+class AttentionLayerUNet(tf.keras.layers.Layer):
+    '''
+    AttentionLayerUNet
+    Provides Attention layer used for Attention U-Net
+    conv_input: previous convolutional layer's output
+    gate_input: output of the second conv. layer before the last
+    filters= number of kernels to be applied to conv outputs
+    '''
+    def __init__(self, filters):
+        super(AttentionLayerUNet, self).__init__()
+        self.filers = filters
+
+        # Getting x to the same shape as gating signal (128 to 64)
+        self.thetaConv2D = tf.keras.layers.Conv2D(filters=filters, kernel_size=(2,2), 
+                                              strides=(2,2), padding='same')
+        
+        # Getting the gating signal to the same number of filters as the inter_shape
+        self.phiGateConv2D = tf.keras.layers.Conv2D(filters=filters, kernel_size=(1,1), 
+                                       strides=(1,1), padding='same')
+        
+        self.psiConv2D = tf.keras.layers.Conv2D(filters=1, kernel_size=(1, 1), padding='same')
+    
+    def repeat_layer(self, tensor, rep):
+        # lambda function to repeat the elements of a tensor along an axis by a
+        # factor of rep. If tensor has shape (None, 256, 256, 3), lambda will return
+        # a tensor of shape (None, 256,256,6), if specified axis=3 and rep=2.
+        # K.repeat_layerents(x, repnum, axis=3),
+        return tf.keras.layers.Lambda(lambda x, repnum: tf.repeat(x, repnum, axis=3),
+                              arguments={'repnum': rep})(tensor)
+    
+    def call(self, conv_input, gate_input):
+        shape_conv_input = tf.keras.backend.int_shape(conv_input)
+        shape_gate_input = tf.keras.backend.int_shape(gate_input)
+
+        theta_x = self.thetaConv2D(conv_input)
+        phi_g = self.phiGateConv2D(gate_input)
+
+        shape_theta_x = tf.keras.backend.int_shape(theta_x)
+        stride = (shape_theta_x[1] // shape_gate_input[1], shape_theta_x[2] // shape_gate_input[2])
+
+        upsample_g = tf.keras.layers.Conv2DTranspose(self.filers, (3, 3),
+                                 strides=stride, padding='same')(phi_g)
+
+        concat_xg = tf.keras.layers.add([upsample_g, theta_x])
+        act_xg = tf.keras.layers.Activation('relu')(concat_xg)
+        
+        psi = self.psiConv2D(act_xg)
+        sigmoid_xg = tf.keras.layers.Activation('sigmoid')(psi)
+
+        shape_sigmoid = tf.keras.backend.int_shape(sigmoid_xg)
+        upsampling_size = (shape_conv_input[1] // shape_sigmoid[1], shape_conv_input[2] // shape_sigmoid[2])
+        
+        upsample_psi = tf.keras.layers.UpSampling2D(size=upsampling_size)(sigmoid_xg)  # 32
+
+        upsample_psi = self.repeat_layer(upsample_psi, shape_conv_input[3])
+
+        y = tf.keras.layers.Multiply()([upsample_psi, conv_input])
+
+        return Conv2DLayerBN(filters=shape_conv_input[3], kernel_size=1, padding='same', batch_norm=True)(y)
