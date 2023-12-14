@@ -15,12 +15,6 @@ The code from the Reference book was written with Pytorch. I wrote the code with
 
 import tensorflow as tf
 
-def logsumexp_2d(tensor):
-    tensor_flatten = tf.reshape(tensor, (tf.shape(tensor)[0], tf.shape(tensor)[1], -1))
-    s = tf.reduce_max(tensor_flatten, axis=2, keepdims=True)
-    outputs = s + tf.math.log(tf.reduce_sum(tf.math.exp(tensor_flatten - s), axis=2, keepdims=True))
-    return outputs
-
 class Conv2DLayerBN(tf.keras.layers.Conv2D):
     '''
     act_end: Activation function for end of the conv + BN -> conv + BN + Act
@@ -195,6 +189,12 @@ class ChannelGate(tf.keras.layers.Layer):
         ])
         self.pool_types = pool_types
 
+    def logsumexp_2d(self, tensor, axis):
+        tensor_flatten = tf.reshape(tensor, (tf.shape(tensor)[0], tf.shape(tensor)[1], -1))
+        s = tf.reduce_max(tensor_flatten, axis=axis, keepdims=True)
+        outputs = s + tf.math.log(tf.reduce_sum(tf.math.exp(tensor_flatten - s), axis=axis, keepdims=True))
+        return outputs
+
     def call(self, x):
         channel_att_sum = None
         for pool_type in self.pool_types:
@@ -208,7 +208,7 @@ class ChannelGate(tf.keras.layers.Layer):
                 lp_pool = tf.norm(x, ord=2, axis=[2, 3], keepdims=True)
                 channel_att_raw = self.mlp(lp_pool)
             elif pool_type == 'lse':
-                lse_pool = logsumexp_2d(x)
+                lse_pool = self.logsumexp_2d(x, axis=2)
                 channel_att_raw = self.mlp(lse_pool)
 
             if channel_att_sum is None:
