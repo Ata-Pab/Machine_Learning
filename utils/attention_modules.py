@@ -9,6 +9,7 @@ Original file is located at
 Reference:
 
 https://blog.paperspace.com/attention-mechanisms-in-computer-vision-cbam/
+https://arxiv.org/abs/1807.06521
 
 The code from the Reference book was written with Pytorch. I wrote the code with TensorFlow v2.
 """
@@ -23,7 +24,7 @@ class Conv2DLayerBN(tf.keras.layers.Conv2D):
     '''
     def __init__(self, filters, kernel_size, strides=(1, 1), padding='valid', 
                  activation=None,act_end=None, batch_norm=True, lrelu_alpha=0.3, 
-                 *args, **kwargs):
+                 dropout_end=0.0, *args, **kwargs):
         # Call the constructor of the base class (tf.keras.layers.Conv2D)
         super(Conv2DLayerBN, self).__init__(
             filters=filters,
@@ -36,8 +37,10 @@ class Conv2DLayerBN(tf.keras.layers.Conv2D):
         )
         act_funcs = ["relu", "lrelu", "sigmoid"]
         assert((act_end == None) or (act_end in act_funcs))
+        assert((dropout_end >= 0.0) and (dropout_end <= 1.0))
 
         self.batch_norm = tf.keras.layers.BatchNormalization(epsilon=1e-5, momentum=0.01) if batch_norm else None
+        self.dropout_end = dropout_end
 
         if act_end == "relu":
             #act_func = tf.nn.relu()
@@ -78,6 +81,8 @@ class Conv2DLayerBN(tf.keras.layers.Conv2D):
             x = self.batch_norm(x)
         if self.activation is not None:
             x = self.activation(x)
+        if self.dropout_end > 0.0:
+            x = tf.keras.layers.Dropout(self.dropout_end)(x)
         return x
 
     def get_config(self):
