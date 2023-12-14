@@ -125,11 +125,27 @@ class ChannelPool(tf.keras.layers.Layer):
     ChannelPool
     Calculate Max and Avg. pooling for given tensor
     Concatenate them to produce a tensor for being input of MLP
+    In a 4D image tensor, the dimensions typically represent the 
+    (batch size, height, width, channels). The axis=3 corresponds 
+    to the channels or depth dimension (Channel-wise operation).
     '''
-    def call(self, x):
-        max_pool = tf.expand_dims(tf.reduce_max(x, axis=1), axis=1)
-        mean_pool = tf.expand_dims(tf.reduce_mean(x, axis=1), axis=1)
-        return tf.concat([max_pool, mean_pool], axis=1)
+    def call(self, inputs):
+        # axis=3 refers to the channels dimension. "keepdims=True" 
+        # argument ensures that the resulting tensor retains the 
+        # dimensions along axis 3, even if the size is reduced to 1. 
+        # The output will have the shape of the original tensor with 
+        # the channels dimension reduced to size 1 along that axis.
+        max_pool = tf.keras.layers.Lambda(lambda x: tf.keras.backend.max(x, axis=3, keepdims=True))(inputs)
+        mean_pool = tf.keras.layers.Lambda(lambda x: tf.keras.backend.mean(x, axis=3, keepdims=True))(inputs)
+        
+        #max_pool = tf.expand_dims(tf.reduce_max(inputs, axis=1), axis=1)
+        #mean_pool = tf.expand_dims(tf.reduce_mean(inputs, axis=1), axis=1)
+        #return tf.concat([max_pool, mean_pool], axis=1)
+
+        # tf.keras.layers.Concatenate: takes a list of tensors as input and concatenates
+        # them along the specified axis to produce a single tensor.
+        return tf.keras.layers.Concatenate(axis=3)([mean_pool, max_pool])
+
 
 class SpatialGate(tf.keras.layers.Layer):
     '''
@@ -140,17 +156,22 @@ class SpatialGate(tf.keras.layers.Layer):
     and gives a tensor with shape (1 x H x W)
     Last, Sigmoid function is employed to give probabilistic results for a given
     tensor
+
+    Reference: https://arxiv.org/abs/1807.06521
     '''
     def __init__(self, kernel_size=7, stride=1):
         super(SpatialGate, self).__init__()
-        self.compress = ChannelPool()
-        self.spatial = CustomConv2DLayer(filters=1, kernel_size=kernel_size, stride=stride, padding=(kernel_size-1) // 2, act=None)
 
-    def call(self, x):
-        x_compress = self.compress(x)
-        x_out = self.spatial(x_compress)
-        scale = tf.math.sigmoid(x_out)
-        return x * scale
+        self.padding='valid' if ((kernel_size-1) // 2) == 0 else 'same'
+
+        self.channelPooling = ChannelPool()
+        self.spatialConv2D = Conv2DLayerBN(filters=1, kernel_size=kernel_size, strides=stride,
+                         padding=self.padding, act_end='sigmoid', batch_norm=True)
+    
+    def call(self, inputs):
+        x_pool = self.channelPooling(inputs)
+        attention = self.spatialConv2D(x_pool)
+        return tf.keras.layers.multiply([inputs, attention])
 
 #class Flatten(tf.keras.layers.Layer):
 #    def call(self, x):
@@ -170,71 +191,99 @@ class ChannelGate(tf.keras.layers.Layer):
     'max': Max. pooling
     'lp': Power Avg. pooling
     'lse': Logarithmic Summed Exponential (LSE) pooling
+
+    Reference: https://arxiv.org/abs/1807.06521
     '''
     def __init__(self, gate_channels, reduction_ratio=16, pool_types=['avg', 'max']):
         super(ChannelGate, self).__init__()
         # Check valid pool types
-        self.valid_pool_types = ['avg', 'max', 'lp', 'lse']
+        valid_pool_types = ['avg', 'max', 'lp', 'lse']
         for pool_type in pool_types:
-            assert(pool_type in self.valid_pool_types)
+            assert(pool_type in valid_pool_types)
+        self.pool_types = pool_types
 
         self.gate_channels = gate_channels
+        self.reduction_ratio = reduction_ratio
+
         # MLP (Multi Layer Perceptron)
         self.mlp = tf.keras.Sequential([
             #Flatten(),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(gate_channels // reduction_ratio),
+            tf.keras.layers.Dense(self.gate_channels // self.reduction_ratio),
             tf.keras.layers.ReLU(),
-            tf.keras.layers.Dense(gate_channels)
+            tf.keras.layers.Dense(self.gate_channels)
         ])
-        self.pool_types = pool_types
 
     def logsumexp_2d(self, tensor, axis):
+        '''
+        It is often applied to avoid numerical instability when 
+        dealing with exponentials of large numbers. 
+        tensor: Input tf.tensor
+        axis: axis identifier for global max and sum operations
+        '''
         tensor_flatten = tf.reshape(tensor, (tf.shape(tensor)[0], tf.shape(tensor)[1], -1))
         s = tf.reduce_max(tensor_flatten, axis=axis, keepdims=True)
         outputs = s + tf.math.log(tf.reduce_sum(tf.math.exp(tensor_flatten - s), axis=axis, keepdims=True))
         return outputs
 
     def call(self, x):
-        channel_att_sum = None
+        #channel_att_sum = None
+        pooling_list = []
         for pool_type in self.pool_types:
             if pool_type == 'avg':
-                avg_pool = tf.reduce_mean(x, axis=[2, 3], keepdims=True)
-                channel_att_raw = self.mlp(avg_pool)
+                #avg_pool = tf.reduce_mean(x, axis=[2, 3], keepdims=True)
+                # 4D tensor representing images, the axes [2, 3] correspond 
+                # to the spatial dimensions (height and width)
+                avg_pool = tf.keras.layers.GlobalAveragePooling2D()(x)
+                #channel_att_raw = self.mlp(avg_pool)
+                avg_pool = self.mlp(avg_pool)
+                pooling_list.append(avg_pool)
             elif pool_type == 'max':
-                max_pool = tf.reduce_max(x, axis=[2, 3], keepdims=True)
-                channel_att_raw = self.mlp(max_pool)
+                max_pool = tf.keras.layers.GlobalMaxPooling2D()(x)
+                #max_pool = tf.reduce_max(x, axis=[2, 3], keepdims=True)
+                max_pool = tf.keras.layers.Reshape((1,1, self.gate_channels))(max_pool)
+                #channel_att_raw = self.mlp(max_pool)
+                max_pool = self.mlp(max_pool)
+                pooling_list.append(max_pool)
             elif pool_type == 'lp':
                 lp_pool = tf.norm(x, ord=2, axis=[2, 3], keepdims=True)
-                channel_att_raw = self.mlp(lp_pool)
+                #channel_att_raw = self.mlp(lp_pool)
+                lp_pool = self.mlp(lp_pool)
+                pooling_list.append(lp_pool)
             elif pool_type == 'lse':
                 lse_pool = self.logsumexp_2d(x, axis=2)
-                channel_att_raw = self.mlp(lse_pool)
+                #channel_att_raw = self.mlp(lse_pool)
+                lse_pool = self.mlp(lse_pool)
+                pooling_list.append(lse_pool)
 
-            if channel_att_sum is None:
-                channel_att_sum = channel_att_raw
-            else:
-                channel_att_sum = channel_att_sum + channel_att_raw
+            #if channel_att_sum is None:
+            #    channel_att_sum = channel_att_raw
+            #else:
+            #    channel_att_sum = channel_att_sum + channel_att_raw
+        attention = tf.keras.layers.Add()(pooling_list)
 
-        scale = tf.math.sigmoid(channel_att_sum)
-        #scale = tf.math.sigmoid(channel_att_sum) * tf.expand_dims(tf.expand_dims(tf.constant(1.0), axis=2), axis=3)
-        return x * scale
+        #scale = tf.math.sigmoid(channel_att_sum)
+        attention = tf.keras.layers.Activation('sigmoid')(attention)
+        #return x * scale
+        return tf.keras.layers.Multiply()([x, attention])
 
 class CBAM(tf.keras.layers.Layer):
     '''
     CBAM (Convolutional Block Attention Module)
     CAM + SAM blocks
     Applies Channel Attention Module for given tensors
-    sam_block: sets whether SAM block will be used
+    sam_block: sets whether SAM (Spatial Attention Block) will be used
     reduction_ratio: The higher the reduction ratio, the fewer the number of
     neurons in the bottleneck
+
+    Reference: https://arxiv.org/abs/1807.06521
     '''
     def __init__(self, gate_channels, reduction_ratio=16, pool_types=['avg', 'max'], sam_block=True):
         super(CBAM, self).__init__()
         # Check valid pool types
-        self.valid_pool_types = ['avg', 'max', 'lp', 'lse']
+        valid_pool_types = ['avg', 'max', 'lp', 'lse']
         for pool_type in pool_types:
-            assert(pool_type in self.valid_pool_types)
+            assert(pool_type in valid_pool_types)
 
         self.ChannelGate = ChannelGate(gate_channels, reduction_ratio, pool_types)
         self.sam_block = sam_block
@@ -242,8 +291,8 @@ class CBAM(tf.keras.layers.Layer):
         if sam_block:
             self.SpatialGate = SpatialGate()
 
-    def call(self, x):
-        x_out = self.ChannelGate(x)
+    def call(self, inputs):
+        x_out = self.ChannelGate(inputs)
         if self.sam_block:
             x_out = self.SpatialGate(x_out)
         return x_out
