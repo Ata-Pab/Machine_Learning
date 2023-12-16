@@ -219,6 +219,44 @@ def mad_score(points):
     mad = np.median(ad)
     return 0.6745 * ad / mad
 
+
+class ZScore():
+    '''
+    ZScoreLoss
+    Calculates each pixel's mean and std_dev values for all bunch of dataset
+    Methods
+    get_normalized_batch(self, input_tensor): gets normalized dataset using
+    mean and std_dev values calculated before
+    '''
+    def __init__(self, input_tensor, axis=None):
+        self.mean = tf.reduce_mean(input_tensor, axis=axis)
+        self.std_dev = tf.math.reduce_std(input_tensor, axis=axis)
+
+    def get_mean(self):
+        return self.mean
+
+    def get_std_dev(self):
+        return self.std_dev
+
+    def get_normalized_batch(self, input_tensor):
+        '''
+        Normalize images using calculated mean and std_dev
+        '''
+        return ((input_tensor - self.mean) / self.std_dev)
+
+    def __call__(self, input_tensor):
+        '''
+        Calculate z score for given data
+        Z = (X-mean) / std_dev
+        '''
+        if len(input_tensor.shape) == (len(self.mean.shape) + 1):
+            return ((input_tensor - self.mean[..., tf.newaxis]) / self.std_dev[..., tf.newaxis])
+        elif len(input_tensor.shape) == len(self.mean.shape):
+            return ((input_tensor - self.mean) / self.std_dev)
+        else:
+            print("z score could not be calculated due to dimension mismatch")
+            return input_tensor
+        
 # Reference
 # https://github.com/keras-team
 # 
