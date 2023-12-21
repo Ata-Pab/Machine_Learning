@@ -1,5 +1,5 @@
 import tensorflow as tf
-from attention_modules import Conv2DLayerBN, Conv2DLayerRes, CBAM, AttentionLayerUNet
+from utils.attention_modules import Conv2DLayerBN, Conv2DLayerRes, CBAM, AttentionLayerUNet
 import warnings
 
 def build_ConvAEModelV1(input_shape, latent_dim, layer_sizes=[32, 64, 128, 128, 256, 256, 256], **kwargs):
