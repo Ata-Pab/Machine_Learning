@@ -19,12 +19,12 @@ def conv_block(x, filter_size, size, dropout, batch_norm=False):
 
     return conv
 
-def repeat_elem(tensor, rep):
+def repeat_layer(tensor, rep):
     # lambda function to repeat the elements of a tensor along an axis by a
     # factor of rep. If tensor has shape (None, 256, 256, 3), lambda will return
     # a tensor of shape (None, 256,256,6), if specified axis=3 and rep=2.
 
-    return layers.Lambda(lambda x, repnum: tf.repeat(x, repnum, axis=3),   # K.repeat_elements(x, repnum, axis=3),
+    return layers.Lambda(lambda x, repnum: tf.repeat(x, repnum, axis=3),   # K.repeat_layerents(x, repnum, axis=3),
                           arguments={'repnum': rep})(tensor)
 
 def res_conv_block(x, filter_size, size, dropout, batch_norm=False):
@@ -78,7 +78,7 @@ def gating_signal(input, out_size, batch_norm=False):
     x = layers.Activation('relu')(x)
 
     return x
-
+        
 # Sample attention block
 def attention_block(x, gating, inter_shape):
     shape_x = K.int_shape(x)  # x
@@ -103,7 +103,7 @@ def attention_block(x, gating, inter_shape):
 
     upsample_psi = layers.UpSampling2D(size=(shape_x[1] // shape_sigmoid[1], shape_x[2] // shape_sigmoid[2]))(sigmoid_xg)
 
-    upsample_psi = repeat_elem(upsample_psi, shape_x[3])
+    upsample_psi = repeat_layer(upsample_psi, shape_x[3])
     y = layers.multiply([upsample_psi, x])
 
     result = layers.Conv2D(shape_x[3], (1,1), padding='same')(y)
@@ -351,7 +351,7 @@ class ConvAEModel(tf.keras.Model):
 
         if self.batch_norm:
           name = 'conv_block_bacth_norm_' + str(self.layer_iter)
-          x = layers.BatchNormalization(name=name)(x)
+          x = tf.keras.layers.BatchNormalization(name=name)(x)
 
         self.layer_iter += 1
         x = self.act_func(x)
@@ -362,26 +362,26 @@ class ConvAEModel(tf.keras.Model):
 
     def create_custom_model(self):
         # Encoder Part
-        input = layers.Input(shape=self._input_shape)
+        input = tf.keras.Input(shape=self._input_shape)
         # Conv blocks
         x = self.conv_block(input, filters=self._layer_sizes[0], kernel=5, stride=2, name='conv2d_block_0')
         for ix, num_filter in enumerate(self._layer_sizes[1:]):
           _name = 'conv2d_block_' + str((ix+1))
           x = self.conv_block(x, filters=num_filter, kernel=5, stride=2, name=_name)
         # Flatten layer
-        x = layers.Flatten(name='flatten_layer')(x)
-        x = layers.Dense(units=(self._num_dense*self._num_dense*256))(x)
+        x = tf.keras.layers.Flatten(name='flatten_layer')(x)
+        x = tf.keras.layers.Dense(units=(self._num_dense*self._num_dense*256))(x)
 
         #x = BatchNormalization(name='bacth_norm_1')(x)
-        x = layers.LeakyReLU(alpha=self.leaky_slope)(x)
+        x = tf.keras.layers.LeakyReLU(alpha=self.leaky_slope)(x)
         # Latent vector
-        x = layers.Dense(units=self._latent_dim, name='latent_layer')(x)
-        x = layers.LeakyReLU(alpha=self.leaky_slope)(x)
+        x = tf.keras.layers.Dense(units=self._latent_dim, name='latent_layer')(x)
+        x = tf.keras.layers.LeakyReLU(alpha=self.leaky_slope)(x)
 
         # Decoder Part
-        x = layers.Dense(units=(self._num_dense*self._num_dense*256))(x)
+        x = tf.keras.layers.Dense(units=(self._num_dense*self._num_dense*256))(x)
         #x = BatchNormalization(name='batch_norm_2')(x)
-        x = layers.LeakyReLU(alpha=self.leaky_slope)(x)
+        x = tf.keras.layers.LeakyReLU(alpha=self.leaky_slope)(x)
 
         x = tf.keras.layers.Reshape((self._num_dense,self._num_dense,256), name='reshape_latent')(x)
 
@@ -391,10 +391,10 @@ class ConvAEModel(tf.keras.Model):
           _name = 'conv2d_transpose_block_' + str((ix+1))
           x = self.conv_block(x, num_filter, kernel=5, stride=2, deconv=True, name=_name)
 
-        output = layers.Conv2DTranspose(filters=self._input_shape[2], kernel_size=5, strides=2, padding='same',
+        output = tf.keras.layers.Conv2DTranspose(filters=self._input_shape[2], kernel_size=5, strides=2, padding='same',
         use_bias=True, activation='sigmoid')(x)
 
-        return tf.keras.models.Model(input, output, name="conv_ae_model")
+        return tf.keras.Model(input, output, name="conv_ae_model")
 
     def call(self, x):
         return self._model(x, training=False)
