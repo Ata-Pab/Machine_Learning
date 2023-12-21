@@ -1,6 +1,5 @@
 import tensorflow as tf
-import losses
-from attention_modules import Conv2DLayerBN, Conv2DLayerRes, CBAM, AttentionLayerUNet
+from utils.attention_modules import Conv2DLayerBN, Conv2DLayerRes, CBAM, AttentionLayerUNet
 
 def build_ConvAEModelV1(input_shape, latent_dim, layer_sizes=[32, 64, 128, 128, 256, 256, 256], **kwargs):
     num_strides = len(layer_sizes)
@@ -38,7 +37,7 @@ def build_ConvAEModelV1(input_shape, latent_dim, layer_sizes=[32, 64, 128, 128, 
       _name = 'conv2d_block_' + str((ix+1))
       x = Conv2DLayerBN(filters=num_filter, kernel_size=_kernel_size, strides=_strides, 
                         padding=_padding, use_bias=_use_bias, act_end=_act_end, lrelu_alpha=_lrelu_alpha,
-                        name='conv2d_block_0')(x)
+                        name=_name)(x)
 
     # Flatten layer
     x = tf.keras.layers.Flatten(name='flatten_layer')(x)
@@ -68,6 +67,6 @@ def build_ConvAEModelV1(input_shape, latent_dim, layer_sizes=[32, 64, 128, 128, 
 
     output = tf.keras.layers.Conv2DTranspose(filters=input_shape[2], kernel_size=_kernel_size,
                                              strides=_strides, padding=_padding, use_bias=_use_bias,
-    use_bias=True, activation='sigmoid')(x)
+                                              activation='sigmoid')(x)
 
     return tf.keras.Model(input, output, name="conv_ae_model")
