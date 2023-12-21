@@ -24,7 +24,7 @@ def repeat_layer(tensor, rep):
     # factor of rep. If tensor has shape (None, 256, 256, 3), lambda will return
     # a tensor of shape (None, 256,256,6), if specified axis=3 and rep=2.
 
-    return layers.Lambda(lambda x, repnum: tf.repeat(x, repnum, axis=3),   # K.repeat_layerents(x, repnum, axis=3),
+    return layers.Lambda(lambda x, repnum: tf.repeat(x, repnum, axis=3),   # K.repeat_layer(x, repnum, axis=3),
                           arguments={'repnum': rep})(tensor)
 
 def res_conv_block(x, filter_size, size, dropout, batch_norm=False):
