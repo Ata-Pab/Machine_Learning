@@ -49,8 +49,9 @@ class Conv2DLayerBN(tf.keras.layers.Conv2D):
             #act_func = tf.nn.relu()
             self.activation = tf.keras.layers.Activation(act_end)
         elif act_end == "lrelu":
-            act_func = tf.nn.leaky_relu(alpha=lrelu_alpha)
-            self.activation = tf.keras.layers.Activation(act_func)
+            #act_func = tf.nn.leaky_relu(alpha=lrelu_alpha)
+            #self.activation = tf.keras.layers.Activation(act_func)
+            self.activation = tf.keras.layers.LeakyReLU(alpha=lrelu_alpha)
         elif act_end == "sigmoid":
             #act_func = tf.keras.activations.sigmoid()
             self.activation = tf.keras.layers.Activation(act_end)
