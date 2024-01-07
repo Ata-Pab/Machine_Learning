@@ -82,9 +82,9 @@ def get_all_files_ext(path, ext, sort=True):
       return files
 
 # Unzip the downloaded file
-def unzip_data(zip_file_name):
+def unzip_data(zip_file_name, target_path=None):
     zip_ref = zipfile.ZipFile(zip_file_name, "r")
-    zip_ref.extractall()
+    zip_ref.extractall(path=target_path)
     zip_ref.close()
 
 # Print working or data directory map - walk through directory
