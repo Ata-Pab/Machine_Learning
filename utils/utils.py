@@ -452,7 +452,7 @@ def patchify_images(img_file_list, patch_size=256, img_size=None, method='CROP',
       image = cv2.imread(image_file, 1)  # Read each image as BGR
       if img_size != None:
         # Resize the image
-        image = image.resize(img_size[1], img_size[0])
+        image = cv2.resize(image, (img_size[1], img_size[0]))
       if cvt_rgb == True:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
       SIZE_X = (image.shape[1]//patch_size)*patch_size # Nearest size divisible by specified patch size
