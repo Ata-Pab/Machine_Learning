@@ -133,11 +133,14 @@ class Conv2DLayerRes(tf.keras.layers.Layer):
                                                 activation=activation, act_end=act_end, 
                                                 batch_norm=batch_norm, lrelu_alpha=lrelu_alpha,
                                                 dropout_end=0.0)
+        
         # 2. Conv2D: conv + BN + Dropout
         self.secondConv2DLayer = Conv2DLayerBN(filters=filters, kernel_size=kernel_size,
-                                                strides=strides, padding=padding,
+                                                #strides=strides, padding=padding,
+                                                strides=1, padding="same",
                                                 activation=activation, act_end=None, 
                                                 batch_norm=batch_norm, dropout_end=dropout_end)
+        
         # 3. ShortCutConv2D: conv + BN (kernel_size= (1,1))
         self.shortcutConv2DLayer = Conv2DLayerBN(filters=filters, kernel_size=1,
                                                 strides=strides, padding=padding,
@@ -150,6 +153,63 @@ class Conv2DLayerRes(tf.keras.layers.Layer):
         # ______________________________________
         conv_res = self.firstConv2DLayer(inputs)
         conv_res = self.secondConv2DLayer(conv_res)
+        shortcut = self.shortcutConv2DLayer(inputs)
+        residual = tf.keras.layers.Add()([shortcut, conv_res])
+        return tf.keras.layers.Activation('relu')(residual)
+
+class Conv2DLayerResCBAM(tf.keras.layers.Layer):
+    '''
+    Conv2DLayerResCBAM (ResBlock + CBAM)
+    2D Residual Convolutional layer with batch normalization, activation end 
+    and dropout features.
+    There are two options for Residual convolutional layer.
+    Either put activation function before the addition with shortcut
+    or after the addition (which would be as proposed in the original resNet).
+
+    1. conv + BN + Act_end + Dropout
+    2. Convolutional Block Attention Module (CBAM) - Channel Attention + Spatial Attention
+
+    conv + BN + Act_end + Dropout + CBAM + Add
+
+    ref: https://arxiv.org/pdf/1807.06521.pdf
+
+    act_end: Activation function for end of the conv + BN -> conv + BN + Act
+    batch_norm: Batch normalization
+    lrelu_alpha: Leaky ReLU activation function alpha
+    dropout_end: Dropout rate (0.0 to 1.0) at the end of conv. block -> conv + BN + Act + Dropout
+    '''
+    def __init__(self, filters, kernel_size, strides=(1, 1), padding='valid', 
+                 activation=None, act_end=None, batch_norm=True, lrelu_alpha=0.3, 
+                 dropout_end=0.0, reduction_ratio=16, *args, **kwargs):
+        # Call the constructor of the base class (Conv2DLayerBN)
+        super(Conv2DLayerResCBAM, self).__init__()
+
+        act_funcs = ["relu", "lrelu", "sigmoid"]
+        assert((act_end == None) or (act_end in act_funcs))
+        assert((dropout_end >= 0.0) and (dropout_end <= 1.0))
+
+        # 1. Conv2D: conv + BN + Activation
+        self.firstConv2DLayer = Conv2DLayerBN(filters=filters, kernel_size=kernel_size,
+                                                strides=strides, padding=padding,
+                                                activation=activation, act_end=act_end, 
+                                                batch_norm=batch_norm, lrelu_alpha=lrelu_alpha,
+                                                dropout_end=0.0)
+        
+        # 2. Convolutional Block Attention Module
+        self.attentionLayer = CBAM(gate_channels=filters, reduction_ratio=reduction_ratio)
+
+        # 3. ShortCutConv2D: conv + BN (kernel_size= (1,1))
+        self.shortcutConv2DLayer = Conv2DLayerBN(filters=filters, kernel_size=1,
+                                                strides=strides, padding=padding,
+                                                activation=None, act_end=None, 
+                                                batch_norm=batch_norm, dropout_end=dropout_end)
+        
+    def call(self, inputs):
+        # ...Add forward pass activations here...
+
+        # ______________________________________
+        conv_res = self.firstConv2DLayer(inputs)
+        conv_res = self.attentionLayer(conv_res)
         shortcut = self.shortcutConv2DLayer(inputs)
         residual = tf.keras.layers.Add()([shortcut, conv_res])
         return tf.keras.layers.Activation('relu')(residual)
