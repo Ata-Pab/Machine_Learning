@@ -54,7 +54,11 @@ def get_all_img_files_in_directory(data_dir, ext='jpeg', exc="", verbose=0):
       if not((exc != "") and (exc in dirpath)):
         if len(filenames) > 0:
           img_file_list.extend(get_image_file_list(dirpath, ext=ext))
-
+      
+      if ((exc != "") and (exc in dirpath)):
+        if verbose > 0:
+          print(f"Files in the '{dirpath}' path was not included in the file list")
+         
       if verbose > 0:
         print(f"There are {len(dirnames)} directories and {len(filenames)} files in '{dirpath}'.")
     
