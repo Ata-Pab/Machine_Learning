@@ -2,6 +2,7 @@ import os
 import zipfile
 import cv2
 import glob
+import math
 import re  # Regex for string parsing
 import matplotlib.pyplot as plt
 import numpy as np
@@ -649,6 +650,31 @@ def remove_training_weights_except_last_epoch(weights_dir):
             user = input(f"{weight_file} will be removed. [y/n]: ")
             if user == 'y':
                 os.remove(weight_file)
+
+def get_new_image_size_according_to_patch_size(image_size, patch_size=256, max_grid_num=36, verbose=0):
+    MAX_GRIDS = 36  # DETECT_DETAIL_POWER - Maximum 36 - Optimal Input Shape: (256, 256, 3)
+    if max_grid_num > MAX_GRIDS: max_grid_num = MAX_GRIDS
+    img_aspect_ratio = (image_size[1]/image_size[0])
+
+    grid_width = int(round(math.sqrt(max_grid_num*img_aspect_ratio)))
+    grid_height = int(round(grid_width/img_aspect_ratio))
+
+    while ((grid_width*patch_size > image_size[1]) or
+     (grid_height*patch_size > image_size[0])):
+        grid_width -= 1
+        grid_height -= 1
+
+    modified_image_size = (grid_height*patch_size, grid_width*patch_size)
+
+    if verbose > 0:
+        print(f"Original Image size: ({image_size[0]}, {image_size[1]})")
+        print(f"Original image aspect ratio: {round(img_aspect_ratio, 3)}")
+        print(f"Width grid: {grid_width}, Heigth grid: {grid_height}")
+        print(f"Defect Detail Power/Coeff: {grid_width*grid_height} (Maximum: {MAX_GRIDS} (grids))")
+        print(f"Modified aspect ratio: {round(grid_width/grid_height, 3)}")
+        print(f"Modified Image size: {modified_image_size}")
+
+    return modified_image_size
 
 # Reference
 # https://github.com/keras-team
