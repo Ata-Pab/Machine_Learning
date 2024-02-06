@@ -28,6 +28,10 @@ def describe_model_layers(model):
 def get_image_file_list(dir, ext='jpeg'):
     formats = ['jpg', 'png', 'jpeg', 'JPG', 'JPEG', 'PNG']
     img_list = []
+    
+    # Remove file format dot if exists
+    if ext[0] == ".":
+       ext = ext[1:]
 
     if ext in formats:
         rgx_for_img = dir + "/*." + ext
