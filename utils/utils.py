@@ -174,7 +174,8 @@ def concatenate_images(original_images, augmented_images):
 
 
 # Create Dataset Pipeline for tf.models
-def create_dataset_pipeline(img_files, batch_size, img_size=None, aspect=False, scl=True, shuffle=False, num_channels=3, rot=ROT_0, duplicate=False, aug_layer=None, data_aug_power=1, accelerator='GPU'):
+def create_dataset_pipeline(img_files, batch_size, img_size=None, aspect=False, scl=True, shuffle=False, num_channels=3, 
+                            rot=ROT_0, duplicate=False, patch_size=None, aug_layer=None, data_aug_power=1, accelerator='GPU'):
     '''
     img_files: Image file list
     batch_size: Batch size
@@ -190,8 +191,14 @@ def create_dataset_pipeline(img_files, batch_size, img_size=None, aspect=False, 
     data_aug_power= How many times data augmentation will be applied to the whole dataset. default 1
     accelerator= 'GPU' or 'TPU'. default 'GPU'
     '''
-    # Read images from directory and reshape, scale
-    dataset = tf.data.Dataset.from_tensor_slices(load_and_prepare_images(img_files, img_size=img_size, aspect=aspect, scl=scl, num_channels=num_channels, rot=rot, accelerator=accelerator))
+    if patch_size != None:
+        dataset = tf.cast(cvt_color_BGR2RGB(patchify_images(img_files, patch_size=patch_size, img_size=img_size)).numpy(), tf.float32)
+        if scl: 
+            dataset = dataset / 255.
+        dataset = tf.data.Dataset.from_tensor_slices(dataset)
+    else:
+        # Read images from directory and reshape, scale
+        dataset = tf.data.Dataset.from_tensor_slices(load_and_prepare_images(img_files, img_size=img_size, aspect=aspect, scl=scl, num_channels=num_channels, rot=rot, accelerator=accelerator))
     
     if aug_layer != None:
         # Apply specified augmentation sequential layer to the image
