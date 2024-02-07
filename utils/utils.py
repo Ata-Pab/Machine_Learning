@@ -681,7 +681,7 @@ def get_new_image_size_according_to_patch_size(image_size, patch_size=256, max_g
         print(f"Modified aspect ratio: {round(grid_width/grid_height, 3)}")
         print(f"Modified Image size: {modified_image_size}")
 
-    return modified_image_size
+    return modified_image_size, grid_width, grid_height
 
 # Reference
 # https://github.com/keras-team
