@@ -534,6 +534,8 @@ class GradCAM:
 
   def compute_heatmap(self, image, class_id, eps=1e-8):
     self.class_id = class_id
+    self.eps = eps
+    self.image = image
     # Construct gradient model by supplying the inputs to the pre-trained model
     # (The output of the final 4D layer in the network, and the output of the
     # softmax activations from the model
@@ -541,17 +543,21 @@ class GradCAM:
 
     # Compute the gradients
     with tf.GradientTape() as tape:
-      inputs = tf.cast(image, tf.float32)  # cast the image tensor to a float-32
+      inputs = tf.cast(self.image, tf.float32)  # cast the image tensor to a float-32
       (last_conv_layer_output, preds) = gradModel(inputs)
       loss = preds[:, self.class_id]
 
     # Compute the gradients for last convolutional layer
     grads = tape.gradient(loss, last_conv_layer_output)
 
+    # Compute guided gradients and get heatmap
+    return self.compute_guided_gradients_create_heatmap(grads, last_conv_layer_output)
+
+  def compute_guided_gradients_create_heatmap(self, gradients, last_conv_layer_output):
     # Compute the guided gradients
     cast_conv_layer_output = tf.cast(last_conv_layer_output > 0, tf.float32)
-    cast_grads = tf.cast(grads > 0, tf.float32)
-    guided_grads = cast_conv_layer_output * cast_grads * grads
+    cast_grads = tf.cast(gradients > 0, tf.float32)
+    guided_grads = cast_conv_layer_output * cast_grads * gradients
 
     # the convolution and guided gradients have a batch dimension
     # (which we don't need) so let's grab the volume itself and
@@ -567,14 +573,14 @@ class GradCAM:
 
     # grab the spatial dimensions of the input image and resize the output class
     # activation map to match the input image dimensions
-    (w, h) = (image.shape[2], image.shape[1])
+    (w, h) = (self.image.shape[2], self.image.shape[1])
     heatmap = cv2.resize(cam.numpy(), (w, h))
 
     # For visualization purpose normalize the heatmap such that
     # all values lie in the range [0, 1], scale the resulting values to the
     # range [0, 255], and then convert to an unsigned 8-bit integer
     numer = heatmap - np.min(heatmap)
-    denom = (heatmap.max() - heatmap.min()) + eps
+    denom = (heatmap.max() - heatmap.min()) + self.eps
     heatmap = numer / denom
     heatmap = (heatmap * 255).astype("uint8")
 
@@ -609,6 +615,53 @@ class GradCAM:
     #superimposed_img = cv2.addWeighted(image, alpha, heatmap, 1 - alpha, 0)
 
     return (heatmap, superimposed_img)
+  
+class GradCAM_AE(GradCAM):
+  '''
+  GRADCAM_AE class - GradCAM for Autoencoder models
+  model: Model object with trained weights
+  layer_name: specified layer to be extracting gradients from
+  class_id: label
+  alpha: transparency factor for a combination of heatmap and original image
+  Reference: https://github.com/wiqaaas/youtube/blob/master/Deep_Learning_Using_Tensorflow/Demystifying_CNN/Gradient%20Visualization.ipynb
+
+  Example usage:
+  vgg16_model = tf.keras.applications.VGG16(weights="imagenet")
+  ...
+  preds = vgg16_model.predict(image)
+  class_id = np.argmax(preds[0])
+  ...
+  gradCAM = GradCAM(vgg16_model)
+  (heatmap, output) = gradCAM(image, original_image, class_id, alpha=0.8)
+  plt.imshow(output)
+  '''
+  def __init__(self, model, layer_name=None):
+    super().__init__(model, layer_name)
+  
+  def __call__(self, model_input_img, original_image, alpha):
+    heatmap = self.compute_heatmap(model_input_img)
+    return self.overlay_heatmap(heatmap, original_image, alpha=alpha)
+
+  # Override this method
+  def compute_heatmap(self, image, eps=1e-8):
+    self.eps = eps
+    self.image = image
+    # Construct gradient model by supplying the inputs to the pre-trained model
+    # (The output of the final 4D layer in the network, and the output of the
+    # softmax activations from the model
+    gradModel = tf.keras.Model(inputs=[self.model.inputs], outputs= [self.model.get_layer(self.layer_name).output, self.model.output])
+
+    # Compute the gradients
+    with tf.GradientTape() as tape:
+      inputs = tf.cast(image, tf.float32)  # cast the image tensor to a float-32
+      (last_conv_layer_output, reconstructed_output) = gradModel(inputs)
+      loss = tf.reduce_mean(tf.square(inputs - reconstructed_output))
+
+    # Compute the gradients for last convolutional layer
+    grads = tape.gradient(loss, last_conv_layer_output)
+
+    # Compute guided gradients and get heatmap
+    return self.compute_guided_gradients_create_heatmap(grads, last_conv_layer_output)
 
 # Reference
 # https://github.com/keras-team
