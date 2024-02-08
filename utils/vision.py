@@ -446,6 +446,40 @@ def resize_image_with_aspect_ratio(image, width = None, height = None, inter = c
 
     return resized
 
+def overlay_heatmap(heatmap, image, alpha=0.5, colormap=cv2.COLORMAP_JET):
+  '''
+  Combines Heatmap and the input image
+  heatmap: 1 channel image input (W, H, 1), generally used to show gradients
+  image: input image
+  alpha: overlay ratio
+  '''
+  # Use jet colormap to colorize heatmap
+  jet = cm.get_cmap("jet")  # cm.get_cmap will be deprecated after few releases
+  # jet = matplotlib.colormaps.get_cmap("jet")
+
+  # Use RGB values of the colormap
+  jet_colors = jet(np.arange(256))[:, :3]  # First 3 channel: R, G, B
+  jet_heatmap = jet_colors[heatmap]
+
+  # Create an image with RGB colorized heatmap
+  jet_heatmap = tf.keras.utils.array_to_img(jet_heatmap)
+  jet_heatmap = jet_heatmap.resize((image.shape[1], image.shape[0]))
+  jet_heatmap = tf.keras.utils.img_to_array(jet_heatmap)
+
+  # Superimpose/Combine the heatmap on original image
+  superimposed_img = jet_heatmap * alpha + image
+  superimposed_img = tf.keras.utils.array_to_img(superimposed_img)
+
+  # Save the superimposed image
+  # superimposed_img.save(cam_path)
+
+  # apply the supplied color map to the heatmap and then
+  # overlay the heatmap on the input image
+  #heatmap = cv2.applyColorMap(heatmap, colormap)
+  #superimposed_img = cv2.addWeighted(image, alpha, heatmap, 1 - alpha, 0)
+
+  return (heatmap, superimposed_img)
+
 def visualize_feature_matching(org_img_file, ref_img_file):
   # Load the images
   original_img = cv2.imread(org_img_file)
