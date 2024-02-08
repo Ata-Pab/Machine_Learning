@@ -7,6 +7,7 @@ import pandas as pd
 import itertools
 import cv2
 import matplotlib.cm as cm
+from utils import utils
 from google.colab.patches import cv2_imshow
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score # Evaluation metrics
 from sklearn.metrics import classification_report  # Precision, recall, f1-score metrics
@@ -526,6 +527,89 @@ def visualize_feature_matching(org_img_file, ref_img_file):
   matching_result = cv2.drawMatches(original_img, kp1, reference_img, kp2, good_matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
   cv2_imshow(matching_result)
 
+def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="max",
+                              overlay_alpha=0.8, normalize=True, plot_row=5, show=True):
+    # Input image shape control
+    if len(image.shape) == 3:
+        image = tf.expand_dims(image, axis=0)  # expand dim to give input for a model
+    elif len(image.shape) < 3:
+        raise ValueError("Input image shape length can not be lower than 3")
+    
+    def normalizing_result(image, normalizing):
+        if normalizing:
+            return utils.normalize_image(image)
+        else:
+            return image
+    
+    # Generate image
+    generated_image = model.predict(image)
+    # Create model that returns generated image output and the specified conv_layer output
+    gradModel = tf.keras.Model(inputs=[model.inputs], outputs= [model.get_layer(conv_layer_name).output, model.output])
+
+    for layer in gradModel.layers:
+        layer.trainable=False
+
+    conv2d_block_layer_out, recons_layer_out = gradModel(image)
+    conv2d_block_layer_out_gen, recons_layer_out_gen = gradModel(generated_image)
+
+    # Calculate specified conv layer differences for generated and input image
+    if loss == "mse":
+        conv2d_block_layer_diff = tf.square(conv2d_block_layer_out_gen - conv2d_block_layer_out)
+    elif loss == "mae":
+        conv2d_block_layer_diff = tf.abs(conv2d_block_layer_out - conv2d_block_layer_out_gen)
+
+    max_pool = tf.keras.layers.Lambda(lambda x: tf.keras.backend.max(x, axis=3, keepdims=True))(conv2d_block_layer_diff)
+    mean_pool = tf.keras.layers.Lambda(lambda x: tf.keras.backend.mean(x, axis=3, keepdims=True))(conv2d_block_layer_diff)
+
+    max_mean_pool = tf.keras.layers.UpSampling2D(size=(256//mean_pool.shape[1]))(max_pool + mean_pool)
+    max_pool = tf.keras.layers.UpSampling2D(size=(256//max_pool.shape[1]))(max_pool)
+    mean_pool = tf.keras.layers.UpSampling2D(size=(256//mean_pool.shape[1]))(mean_pool)
+
+    image = normalizing_result((tf.squeeze(image, axis=0).numpy()), normalize)
+
+    if pool == "max":
+        pooling_result = max_pool
+    elif pool == "avg":
+        pooling_result = mean_pool
+    elif pool == "max+avg":
+        pooling_result = max_mean_pool
+
+    pooling_result = normalizing_result((tf.squeeze(pooling_result, axis=0)), normalize)
+                              
+    _, org_img_pooling_result = overlay_heatmap((pooling_result.numpy()), image, alpha=overlay_alpha)
+
+    image_matrix = [
+        image,
+        normalizing_result((tf.squeeze(max_pool, axis=0).numpy()), normalize),
+        normalizing_result((tf.squeeze(mean_pool, axis=0).numpy()), normalize),
+        normalizing_result((tf.squeeze(max_mean_pool, axis=0).numpy()), normalize),
+        org_img_pooling_result
+    ]
+
+    label_array = [
+        'Original',
+        'Max',
+        'Avg',
+        'Max+Avg',
+        'Org+Max+Avg'
+    ]
+
+    fig = plt.figure(figsize=(12,12))
+
+    col = (len(label_array) // plot_row) + 1
+
+    if show:
+        for subplot in range(plot_row*col):
+          plt.subplot(col,5,subplot+1)
+          plt.imshow(image_matrix[subplot], cmap='jet')
+          plt.axis('off')
+          plt.title(label_array[subplot])
+          if (subplot+1) == len(label_array):
+              break
+
+        plt.show()
+
+    return normalizing_result((tf.squeeze(max_mean_pool, axis=0).numpy()), normalize)
 
 class GradCAM:
   '''
