@@ -228,6 +228,22 @@ def create_dataset_pipeline(img_files, batch_size, img_size=None, aspect=False, 
     dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
     return dataset
 
+def normalize_image(image, eps=1e-8, cvt_dtype_uint8=True):
+    '''
+    Normalizes images using Min/Mx Scaling
+    image: Input image that will be normalized
+    cvt_dtype_uint8: convert dtype to uint8, otherwise float32
+    '''
+    numer = image - np.min(image)
+    denom = (image.max() - image.min()) + eps
+    image = numer / denom
+
+    if cvt_dtype_uint8:
+        image = (image * 255).astype("uint8")
+    else:
+        image = image.astype("float32")
+    return image
+
 # Detecting and Initializing TPU
 def initialize_TPU():
     tpu_address = 'grpc://' + os.environ['COLAB_TPU_ADDR']  # For Google Colab
