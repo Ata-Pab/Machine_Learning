@@ -34,7 +34,7 @@ def show_image_samples_from_batch(dataset, grid=(4,4), figsize=(10, 10)):
         break
 
 # Display pixel wise imag difference (Valid inputs: img paths or img arrays)
-def display_pixel_wise_img_diff(img1_dir, img2_dir, threshold=None, verbose=0, channel=0):
+def display_pixel_wise_img_diff(img1_dir, img2_dir, method="mae", threshold=None, channel=0, colorbar=True, verbose=0):
     # Load your two images using TensorFlow
     if type(img1_dir) == str:
         image1 = tf.image.decode_image(tf.io.read_file(img1_dir))
@@ -48,7 +48,11 @@ def display_pixel_wise_img_diff(img1_dir, img2_dir, threshold=None, verbose=0, c
     image2 = tf.cast(image2, tf.float32)
 
     # Compute pixel-wise absolute differences
-    diff = tf.abs(image1 - image2)
+    assert((method == "mae") or (method == "MAE") or (method == "mse") or (method == "MSE"))
+    if (method == "mae") or (method == "MAE"):
+        diff = tf.abs(image1 - image2)
+    else:
+        diff = (tf.square(tf.math.pow(image2, 2) - tf.math.pow(image1, 2)))
     if verbose > 0:  print(f"Difference map shape: {diff.shape}")
 
     # Define a colormap (e.g., 'jet') and normalize the differences
@@ -69,7 +73,8 @@ def display_pixel_wise_img_diff(img1_dir, img2_dir, threshold=None, verbose=0, c
 
     # Display the color-coded difference map
     plt.imshow(color_diff_plot)
-    plt.colorbar()
+    if colorbar:
+      plt.colorbar()
     plt.axis('off')
     plt.show()
 
