@@ -533,7 +533,7 @@ def visualize_feature_matching(org_img_file, ref_img_file):
   cv2_imshow(matching_result)
 
 def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="max",
-                              overlay_alpha=0.8, normalize=True, plot_row=5, show=True):
+                              overlay_alpha=0.8, normalize=True, plot_row=4, show=True):
     # Input image shape control
     if len(image.shape) == 3:
         image = tf.expand_dims(image, axis=0)  # expand dim to give input for a model
@@ -560,11 +560,14 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
     # Calculate specified conv layer differences for generated and input image
     if loss == "mse":
         conv2d_block_layer_diff = tf.square(conv2d_block_layer_out_gen - conv2d_block_layer_out)
+        loss_diff = tf.square(image - recons_layer_out_gen)
     elif loss == "mae":
-        conv2d_block_layer_diff = tf.abs(conv2d_block_layer_out - conv2d_block_layer_out_gen)
+        conv2d_block_layer_diff = tf.abs(conv2d_block_layer_out_gen - conv2d_block_layer_out)
+        loss_diff = tf.abs(image - recons_layer_out_gen)
 
     max_pool = tf.keras.layers.Lambda(lambda x: tf.keras.backend.max(x, axis=3, keepdims=True))(conv2d_block_layer_diff)
     mean_pool = tf.keras.layers.Lambda(lambda x: tf.keras.backend.mean(x, axis=3, keepdims=True))(conv2d_block_layer_diff)
+    loss_diff = tf.keras.layers.Lambda(lambda x: tf.keras.backend.mean(x, axis=3, keepdims=True))(loss_diff)
 
     max_mean_pool = tf.keras.layers.UpSampling2D(size=(256//mean_pool.shape[1]))(max_pool + mean_pool)
     max_pool = tf.keras.layers.UpSampling2D(size=(256//max_pool.shape[1]))(max_pool)
@@ -580,35 +583,44 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
         pooling_result = max_mean_pool
 
     pooling_result = normalizing_result((tf.squeeze(pooling_result, axis=0)), normalize)
+    loss_diff_pooling_sum = pooling_result + normalizing_result((tf.squeeze(loss_diff, axis=0)), normalize)
 
     _, org_img_pooling_result = overlay_heatmap((pooling_result), image, alpha=overlay_alpha)
+    _, org_img_loss_diff_pooling_result = overlay_heatmap((loss_diff_pooling_sum), image, alpha=overlay_alpha)
 
     image_matrix = [
         image,
+        normalizing_result((tf.squeeze(loss_diff, axis=0)), normalize),
         normalizing_result((tf.squeeze(max_pool, axis=0)), normalize),
         normalizing_result((tf.squeeze(mean_pool, axis=0)), normalize),
         normalizing_result((tf.squeeze(max_mean_pool, axis=0)), normalize),
-        org_img_pooling_result
+        loss_diff_pooling_sum,
+        org_img_pooling_result,
+        org_img_loss_diff_pooling_result
     ]
 
     label_array = [
         'Original',
+        'Loss',
         'Max',
         'Avg',
         'Max+Avg',
-        'Org+Max+Avg'
+        'Loss+Max+Avg',
+        'Org+Max+Avg',
+        'Org+Loss+Max+Avg'
     ]
 
-    fig = plt.figure(figsize=(12,12))
+    fig = plt.figure(figsize=(12,10))
+    fig.subplots_adjust(hspace=0.5)
 
     col = (len(label_array) // plot_row) + 1
 
     if show:
         for subplot in range(plot_row*col):
-          plt.subplot(col,5,subplot+1)
+          plt.subplot(col,plot_row,subplot+1)
           plt.imshow(image_matrix[subplot], cmap='jet')
           plt.axis('off')
-          plt.title(label_array[subplot])
+          plt.title(label_array[subplot], fontsize=10, fontweight='normal')
           if (subplot+1) == len(label_array):
               break
 
