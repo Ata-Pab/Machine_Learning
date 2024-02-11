@@ -533,7 +533,7 @@ def visualize_feature_matching(org_img_file, ref_img_file):
   cv2_imshow(matching_result)
 
 def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="max",
-                              overlay_alpha=0.8, normalize=True, plot_row=4, show=True):
+                              overlay_alpha=0.8, normalize=True, show=True):
     # Input image shape control
     if len(image.shape) == 3:
         image = tf.expand_dims(image, axis=0)  # expand dim to give input for a model
@@ -590,6 +590,7 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
 
     image_matrix = [
         image,
+        normalizing_result((tf.squeeze(recons_layer_out, axis=0)), normalize),
         normalizing_result((tf.squeeze(loss_diff, axis=0)), normalize),
         normalizing_result((tf.squeeze(max_pool, axis=0)), normalize),
         normalizing_result((tf.squeeze(mean_pool, axis=0)), normalize),
@@ -601,6 +602,7 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
 
     label_array = [
         'Original',
+        'Generated',
         'Loss',
         'Max',
         'Avg',
@@ -610,14 +612,15 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
         'Org+Loss+Max+Avg'
     ]
 
-    fig = plt.figure(figsize=(12,10))
+    fig = plt.figure(figsize=(10,12))
     fig.subplots_adjust(hspace=0.5)
 
-    col = (len(label_array) // plot_row) + 1
+    row = 3
+    col = (len(label_array) // row) + 1
 
     if show:
-        for subplot in range(plot_row*col):
-          plt.subplot(col,plot_row,subplot+1)
+        for subplot in range(row*col):
+          plt.subplot(col,row,subplot+1)
           plt.imshow(image_matrix[subplot], cmap='jet')
           plt.axis('off')
           plt.title(label_array[subplot], fontsize=10, fontweight='normal')
