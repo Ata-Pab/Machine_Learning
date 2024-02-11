@@ -560,10 +560,10 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
     # Calculate specified conv layer differences for generated and input image
     if loss == "mse":
         conv2d_block_layer_diff = tf.square(conv2d_block_layer_out_gen - conv2d_block_layer_out)
-        loss_diff = tf.square(image - recons_layer_out_gen)
+        loss_diff = tf.square(image - recons_layer_out)
     elif loss == "mae":
         conv2d_block_layer_diff = tf.abs(conv2d_block_layer_out_gen - conv2d_block_layer_out)
-        loss_diff = tf.abs(image - recons_layer_out_gen)
+        loss_diff = tf.abs(image - recons_layer_out)
 
     max_pool = tf.keras.layers.Lambda(lambda x: tf.keras.backend.max(x, axis=3, keepdims=True))(conv2d_block_layer_diff)
     mean_pool = tf.keras.layers.Lambda(lambda x: tf.keras.backend.mean(x, axis=3, keepdims=True))(conv2d_block_layer_diff)
