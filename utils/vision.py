@@ -454,6 +454,11 @@ def overlay_heatmap(heatmap, image, alpha=0.5, colormap=cv2.COLORMAP_JET):
   image: input image
   alpha: overlay ratio
   '''
+  if ((len(heatmap.shape) == 3) and (heatmap.shape[2] == 1)):
+      heatmap = (tf.squeeze(heatmap, axis=2))
+  elif (len(heatmap.shape) > 3):
+      raise ValueError(f"ValueError: Expected image array to have rank 2 or 3. Got array with shape: {heatmap.shape}")
+
   # Use jet colormap to colorize heatmap
   jet = cm.get_cmap("jet")  # cm.get_cmap will be deprecated after few releases
   # jet = matplotlib.colormaps.get_cmap("jet")
@@ -574,7 +579,7 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
     elif pool == "max+avg":
         pooling_result = max_mean_pool
 
-    pooling_result = normalizing_result((tf.squeeze(pooling_result, axis=0)), normalize)
+    pooling_result = normalizing_result((tf.squeeze(pooling_result, axis=0).numpy()), normalize)
                               
     _, org_img_pooling_result = overlay_heatmap((pooling_result.numpy()), image, alpha=overlay_alpha)
 
