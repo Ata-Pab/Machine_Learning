@@ -540,6 +540,19 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
     elif len(image.shape) < 3:
         raise ValueError("Input image shape length can not be lower than 3")
     
+    label_array = [
+        'Original',
+        'Generated',
+        'Loss',
+        'Max',
+        'Avg',
+        'Max+Avg',
+        'Loss+Max+Avg',
+        'Org+Max+Avg',
+        'Org+Loss+Max+Avg'
+    ]
+    assert (pool in label_array)
+    
     def normalizing_result(image, normalizing):
         if normalizing:
             return utils.normalize_image(image)
@@ -600,17 +613,9 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
         org_img_loss_diff_pooling_result
     ]
 
-    label_array = [
-        'Original',
-        'Generated',
-        'Loss',
-        'Max',
-        'Avg',
-        'Max+Avg',
-        'Loss+Max+Avg',
-        'Org+Max+Avg',
-        'Org+Loss+Max+Avg'
-    ]
+    for ix in range(len(label_array)):
+        if pooling_result == label_array[ix]:
+              pooling_result = image_matrix[ix]
 
     fig = plt.figure(figsize=(10,12))
     fig.subplots_adjust(hspace=0.5)
