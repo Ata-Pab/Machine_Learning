@@ -234,6 +234,8 @@ def normalize_image(image, eps=1e-8, cvt_dtype_uint8=True):
     image: Input image that will be normalized
     cvt_dtype_uint8: convert dtype to uint8, otherwise float32
     '''
+    if not(isinstance(image, np.ndarray)):  # np.array control
+       image = image.numpy()
     numer = image - np.min(image)
     denom = (image.max() - image.min()) + eps
     image = numer / denom
