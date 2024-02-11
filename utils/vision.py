@@ -614,7 +614,7 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
 
         plt.show()
 
-    return normalizing_result((tf.squeeze(max_mean_pool, axis=0).numpy()), normalize)
+    return pooling_result
 
 class GradCAM:
   '''
