@@ -570,7 +570,7 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
     max_pool = tf.keras.layers.UpSampling2D(size=(256//max_pool.shape[1]))(max_pool)
     mean_pool = tf.keras.layers.UpSampling2D(size=(256//mean_pool.shape[1]))(mean_pool)
 
-    image = normalizing_result((tf.squeeze(image, axis=0).numpy()), normalize)
+    image = normalizing_result((tf.squeeze(image, axis=0)), normalize)
 
     if pool == "max":
         pooling_result = max_pool
@@ -579,15 +579,15 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
     elif pool == "max+avg":
         pooling_result = max_mean_pool
 
-    pooling_result = normalizing_result((tf.squeeze(pooling_result, axis=0).numpy()), normalize)
-                              
-    _, org_img_pooling_result = overlay_heatmap((pooling_result.numpy()), image, alpha=overlay_alpha)
+    pooling_result = normalizing_result((tf.squeeze(pooling_result, axis=0)), normalize)
+
+    _, org_img_pooling_result = overlay_heatmap((pooling_result), image, alpha=overlay_alpha)
 
     image_matrix = [
         image,
-        normalizing_result((tf.squeeze(max_pool, axis=0).numpy()), normalize),
-        normalizing_result((tf.squeeze(mean_pool, axis=0).numpy()), normalize),
-        normalizing_result((tf.squeeze(max_mean_pool, axis=0).numpy()), normalize),
+        normalizing_result((tf.squeeze(max_pool, axis=0)), normalize),
+        normalizing_result((tf.squeeze(mean_pool, axis=0)), normalize),
+        normalizing_result((tf.squeeze(max_mean_pool, axis=0)), normalize),
         org_img_pooling_result
     ]
 
