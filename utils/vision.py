@@ -272,7 +272,7 @@ def plot_randomly_img_predictions(img_arr, y_test, y_pred, labels, num_item=2, f
   plt.show()
 
 # Show ROC Curve - Calculate AUC score
-def show_ROC_score(self, y_test, pos_prob, kind='fp_tp', plot=False, label='Custom Classifier'):
+def show_ROC_score(y_test, pos_prob, kind='fp_tp', plot=False, label='Custom Classifier'):
   if kind == 'fp_tp':   # False Positive-True Positive Curve
     auc_score = roc_auc_score(y_test, pos_prob)
     fp_rate, tp_rate, thresholds = roc_curve(y_test, pos_prob)
