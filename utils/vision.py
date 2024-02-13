@@ -880,6 +880,12 @@ class PixelWiseIoU:
     # Pixel-wise Precision: TP / (TP + FP)
     def calculate_px_wise_precision(self):
         return self.true_positives / (self.true_positives + self.false_positives + self.eps)
+    
+    # Pixel-wise F1 score: 2 x (precision x recall)/(precision + recall)
+    def calculate_px_wise_f1_score(self):
+        precision = self.calculate_px_wise_precision()
+        recall = self.calculate_px_wise_recall()
+        return 2*((precision*recall)/(precision+recall))
 
     # Show all IoU metrics
     def show_iou_metric_results(self):
