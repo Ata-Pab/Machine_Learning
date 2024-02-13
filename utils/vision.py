@@ -889,9 +889,10 @@ class PixelWiseIoU:
 
     # Show all IoU metrics
     def show_iou_metric_results(self):
-        print("Sketchy IoU = {:.5f}".format(self.calculate_sketchy_iou()))
         print("Pixel-wise Precision = {:.5f}".format(self.calculate_px_wise_precision()))
         print("Pixel-wise Recall = {:.5f}".format(self.calculate_px_wise_recall()))
+        print("Pixel-wise F1 score = {:.5f}".format(self.calculate_px_wise_f1_score()))
+        print("Sketchy IoU = {:.5f}".format(self.calculate_sketchy_iou()))
         print("Mean IoU = {:.5f}".format(self.calculate_mean_iou()))
 
 # Reference
