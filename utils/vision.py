@@ -532,8 +532,8 @@ def visualize_feature_matching(org_img_file, ref_img_file):
   matching_result = cv2.drawMatches(original_img, kp1, reference_img, kp2, good_matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
   cv2_imshow(matching_result)
 
-def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="Max",
-                              output='Max+Avg', overlay_alpha=0.8, normalize=True, show=True):
+def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="Max+Avg",
+                              output='Loss+Max+Avg', overlay_alpha=0.8, normalize=True, show=True):
     # Input image shape control
     if len(image.shape) == 3:
         image = tf.expand_dims(image, axis=0)  # expand dim to give input for a model
