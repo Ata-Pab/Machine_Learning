@@ -814,6 +814,80 @@ class GradCAM_AE(GradCAM):
     # Compute guided gradients and get heatmap
     return self.compute_guided_gradients_create_heatmap(grads, last_conv_layer_output)
 
+class PixelWiseIoU:
+    def __init__(self, true_mask, pred_mask, eps=1e-8):
+        self.true_mask = true_mask
+        self.pred_mask = pred_mask
+        self.eps = eps
+
+        self.true_positives = np.sum(np.logical_and(true_mask == 1, pred_mask == 1))
+        self.false_positives = np.sum(np.logical_and(true_mask == 0, pred_mask == 1))
+        self.false_negatives = np.sum(np.logical_and(true_mask == 1, pred_mask == 0))
+
+    # Calculate Sketchy IoU
+    def calculate_sketchy_iou(self):
+        intersection = np.logical_and(self.pred_mask, self.true_mask)
+        union = np.logical_or(self.pred_mask, self.true_mask)
+        iou = np.sum(intersection) / np.sum(union)
+        return iou
+
+    '''
+    # Mean IoU - Uses Conf matrix - default n_class=2 (Binary mask)
+    # dependency: MeanIoU -> from tensorflow.keras.metrics import MeanIoU
+    def calculate_mean_iou(self, n_class=2):
+        # cm = [[1, 1], [1, 1]]
+        # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
+        # iou = true_positives / (sum_row + sum_col - true_positives))
+        # result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2 = 0.33
+        IOU_keras = MeanIoU(num_classes=n_class)
+        IOU_keras.update_state(self.true_mask, self.pred_mask)
+        return IOU_keras.result().numpy()
+    '''
+
+    # Dataset Mean IoU. ToDo: Write this method later
+    def __calculate_dataset_mean_iou(self, n_class=2):
+        pass
+
+    # Mean IoU - Uses Conf matrix - Binary mask
+    def calculate_mean_iou(self):
+        # cm = [[1, 1], [1, 1]]
+        # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
+        # iou = true_positives / (sum_row + sum_col - true_positives))
+        # result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2 = 0.33
+        true_mask = (tf.cast(tf.reshape(self.true_mask, [-1]), dtype=tf.int32)).numpy()
+        pred_mask = (tf.cast(tf.reshape(self.pred_mask, [-1]), dtype=tf.int32)).numpy()
+
+        conf_matrix = confusion_matrix(true_mask, pred_mask)
+
+        sum_row = tf.reduce_sum(conf_matrix, axis=1)
+        sum_col = tf.reduce_sum(conf_matrix, axis=0)
+
+        # Calculate true positives
+        true_positives = tf.linalg.diag_part(conf_matrix)
+
+        # Calculate IoU for each class
+        iou_per_class = true_positives / (sum_row + sum_col - true_positives)
+
+        # Take the mean of IoU across all classes
+        mean_iou = tf.reduce_mean(iou_per_class)
+
+        return mean_iou.numpy()
+
+    # Pixel-wise Recall: TP / (TP + FN)
+    def calculate_px_wise_recall(self):
+        return self.true_positives / (self.true_positives + self.false_negatives + self.eps)
+
+    # Pixel-wise Precision: TP / (TP + FP)
+    def calculate_px_wise_precision(self):
+        return self.true_positives / (self.true_positives + self.false_positives + self.eps)
+
+    # Show all IoU metrics
+    def show_iou_metric_results(self):
+        print("Sketchy IoU = {:.5f}".format(self.calculate_sketchy_iou()))
+        print("Pixel-wise Precision = {:.5f}".format(self.calculate_px_wise_precision()))
+        print("Pixel-wise Recall = {:.5f}".format(self.calculate_px_wise_recall()))
+        print("Mean IoU = {:.5f}".format(self.calculate_mean_iou()))
+
 # Reference
 # https://github.com/keras-team
 # 
