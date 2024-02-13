@@ -532,14 +532,21 @@ def visualize_feature_matching(org_img_file, ref_img_file):
   matching_result = cv2.drawMatches(original_img, kp1, reference_img, kp2, good_matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
   cv2_imshow(matching_result)
 
-def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="max",
-                              overlay_alpha=0.8, normalize=True, show=True):
+def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="Max",
+                              output='Max+Avg', overlay_alpha=0.8, normalize=True, show=True):
     # Input image shape control
     if len(image.shape) == 3:
         image = tf.expand_dims(image, axis=0)  # expand dim to give input for a model
     elif len(image.shape) < 3:
         raise ValueError("Input image shape length can not be lower than 3")
     
+    pool_array = [
+        "Max",
+        "Avg",
+        "Max+Avg"
+    ]
+    assert (pool in pool_array)
+
     label_array = [
         'Original',
         'Generated',
@@ -551,7 +558,7 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
         'Org+Max+Avg',
         'Org+Loss+Max+Avg'
     ]
-    assert (pool in label_array)
+    assert (output in label_array)
     
     def normalizing_result(image, normalizing):
         if normalizing:
@@ -571,10 +578,10 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
     conv2d_block_layer_out_gen, recons_layer_out_gen = gradModel(generated_image)
 
     # Calculate specified conv layer differences for generated and input image
-    if loss == "mse":
+    if ((loss == "mse") or ((loss == "MSE"))):
         conv2d_block_layer_diff = tf.square(conv2d_block_layer_out_gen - conv2d_block_layer_out)
         loss_diff = tf.square(image - recons_layer_out)
-    elif loss == "mae":
+    elif ((loss == "mae") or ((loss == "MAE"))):
         conv2d_block_layer_diff = tf.abs(conv2d_block_layer_out_gen - conv2d_block_layer_out)
         loss_diff = tf.abs(image - recons_layer_out)
 
@@ -588,11 +595,12 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
 
     image = normalizing_result((tf.squeeze(image, axis=0)), normalize)
 
-    if pool == "max":
+    # Get pooling result from Pool array
+    if pool == "Max":
         pooling_result = max_pool
-    elif pool == "avg":
+    elif pool == "Avg":
         pooling_result = mean_pool
-    elif pool == "max+avg":
+    elif pool == "Max+Avg":
         pooling_result = max_mean_pool
 
     pooling_result = normalizing_result((tf.squeeze(pooling_result, axis=0)), normalize)
@@ -614,7 +622,7 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="m
     ]
 
     for ix in range(len(label_array)):
-        if pooling_result == label_array[ix]:
+        if output == label_array[ix]:
               pooling_result = image_matrix[ix]
 
     fig = plt.figure(figsize=(10,12))
