@@ -246,6 +246,10 @@ def normalize_image(image, eps=1e-8, cvt_dtype_uint8=True):
         image = image.astype("float32")
     return image
 
+def heatmap_to_binary_mask(heatmap, threshold):
+    binary_mask = (heatmap > threshold).astype(np.uint8)
+    return binary_mask
+
 # Detecting and Initializing TPU
 def initialize_TPU():
     tpu_address = 'grpc://' + os.environ['COLAB_TPU_ADDR']  # For Google Colab
