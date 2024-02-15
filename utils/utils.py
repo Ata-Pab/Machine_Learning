@@ -175,7 +175,8 @@ def concatenate_images(original_images, augmented_images):
 
 # Create Dataset Pipeline for tf.models
 def create_dataset_pipeline(img_files, batch_size, img_size=None, aspect=False, scl=True, shuffle=False, num_channels=3, 
-                            rot=ROT_0, duplicate=False, patch_size=None, aug_layer=None, data_aug_power=1, accelerator='GPU'):
+                            rot=ROT_0, duplicate=False, patch_size=None, entire_img_pathes=False, aug_layer=None, 
+                            data_aug_power=1, accelerator='GPU'):
     '''
     img_files: Image file list
     batch_size: Batch size
@@ -195,6 +196,9 @@ def create_dataset_pipeline(img_files, batch_size, img_size=None, aspect=False, 
         dataset = tf.cast(cvt_color_BGR2RGB(patchify_images(img_files, patch_size=patch_size, img_size=img_size)).numpy(), tf.float32)
         if scl: 
             dataset = dataset / 255.
+        if entire_img_pathes:
+            # concatenate entire/unpartitioned images with the partitioned images
+            dataset = np.concatenate((dataset, load_and_prepare_images(img_files, img_size=(patch_size, patch_size), aspect=aspect, scl=scl, num_channels=num_channels, rot=rot, accelerator=accelerator)), axis=0)
         dataset = tf.data.Dataset.from_tensor_slices(dataset)
     else:
         # Read images from directory and reshape, scale
@@ -219,10 +223,7 @@ def create_dataset_pipeline(img_files, batch_size, img_size=None, aspect=False, 
     
     # Shuffle (only training set) and create batches
     if shuffle == True:
-        if aug_layer != None:
-            dataset = dataset.shuffle(len(img_files)*data_aug_power)
-        else:
-            dataset = dataset.shuffle(len(img_files))
+        dataset = dataset.shuffle(len(dataset))
     dataset = dataset.batch(batch_size)
     dataset = dataset.cache()
     dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
