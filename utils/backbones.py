@@ -182,7 +182,7 @@ def build_CBAMConvAEModelV1(input_shape, latent_dim, layer_sizes=[32, 64, 128, 1
 def build_ResCBAMConvAEModelV1(input_shape, latent_dim, layer_sizes=[32, 64, 128, 128, 256, 256, 256], 
                                  reduction_ratio=16, attention_for_decoder=True, **kwargs):
     '''
-    CBAM AutoEncoder: Convolutional Block Attention Module AutoEncoder
+    ResCBAM AutoEncoder: Residual Convolutional Block Attention Module AutoEncoder
     '''
     num_strides = len(layer_sizes)
 
