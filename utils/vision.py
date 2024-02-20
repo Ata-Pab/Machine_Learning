@@ -533,7 +533,7 @@ def visualize_feature_matching(org_img_file, ref_img_file):
   cv2_imshow(matching_result)
 
 def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="Max+Avg",
-                              output='Loss+Max+Avg', overlay_alpha=0.8, normalize=True, show=True):
+                              output='Loss+Max+Avg', overlay_alpha=0.8, normalize=True, save_as=None):
     # Input image shape control
     if len(image.shape) == 3:
         image = tf.expand_dims(image, axis=0)  # expand dim to give input for a model
@@ -631,17 +631,19 @@ def visualize_feature_heatmap(model, image, conv_layer_name, loss="mae", pool="M
     row = 3
     col = (len(label_array) // row) + 1
 
-    if show:
-        for subplot in range(row*col):
-          plt.subplot(col,row,subplot+1)
-          plt.imshow(image_matrix[subplot], cmap='jet')
-          plt.axis('off')
-          plt.title(label_array[subplot], fontsize=10, fontweight='normal')
-          if (subplot+1) == len(label_array):
-              break
+    for subplot in range(row*col):
+        plt.subplot(col,row,subplot+1)
+        plt.imshow(image_matrix[subplot], cmap='jet')
+        plt.axis('off')
+        plt.title(label_array[subplot], fontsize=10, fontweight='normal')
+        if (subplot+1) == len(label_array):
+            break
 
-        plt.show()
-
+    if save_as != None:
+        plt.savefig(save_as, bbox_inches='tight')
+    
+    plt.show()
+    
     return pooling_result
 
 class GradCAM:
