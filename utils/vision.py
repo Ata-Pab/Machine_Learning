@@ -34,6 +34,27 @@ def show_image_samples_from_batch(dataset, grid=(4,4), figsize=(10, 10)):
       if index >= ((grid[0]*grid[1])-1):
         break
 
+def plot_histogram(img_file, bins=256, range=[0, 256], figsize=(10, 4)):
+    '''
+    Show histogram and the input image in the same plot
+    '''
+    # Load the image
+    image = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
+
+    fig = plt.figure(figsize=figsize)
+
+    # Calculate histogram using Matplotlib
+    plt.subplot(1, 2, 1)
+    plt.imshow(image)
+    plt.title(f'{img_file}')
+    plt.axis('off')
+    plt.subplot(1, 2, 2)
+    plt.hist(image.ravel(), bins=bins, range=range)
+    plt.title('Histogram')
+    plt.xlabel('Pixel Value')
+    plt.ylabel('Frequency')
+    plt.show()
+
 # Display pixel wise imag difference (Valid inputs: img paths or img arrays)
 def display_pixel_wise_img_diff(img1_dir, img2_dir, method="mae", threshold=None, channel=0, colorbar=True, verbose=0):
     # Load your two images using TensorFlow
