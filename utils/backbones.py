@@ -24,21 +24,26 @@ def build_ConvAEModelV1(input_shape, latent_dim, layer_sizes=[32, 64, 128, 128, 
     _padding="same"
     _use_bias=True
     _lrelu_alpha=0.3
+    _sparsity=None
 
     # Argument setting
     for key, value in kwargs.items():
         if key == "kernel_size":
             _kernel_size = value
-        if key == "strides":
+        elif key == "strides":
             _strides = value
-        if key == "act_end":
+        elif key == "act_end":
             _act_end = value
-        if key == "padding":
+        elif key == "padding":
             _padding = value
-        if key == "use_bias":
+        elif key == "use_bias":
             _use_bias = value
-        if key == "lrelu_alpha":
+        elif key == "lrelu_alpha":
             _lrelu_alpha = value
+        elif key == "sparsity":
+            _sparsity = value
+        else:
+            raise ValueError(f"{key} could not recognized")
     
     # Encoder Part
     input = tf.keras.Input(shape=input_shape)
@@ -61,7 +66,12 @@ def build_ConvAEModelV1(input_shape, latent_dim, layer_sizes=[32, 64, 128, 128, 
         x = tf.keras.layers.LeakyReLU(alpha=_lrelu_alpha)(x)
 
     # Latent vector
-    x = tf.keras.layers.Dense(units=latent_dim, name='latent_layer')(x)
+    if _sparsity != None:
+        # The activity regularizer for sparsity in autoencoders is typically implemented using the 
+        # L1 regularization term on the activations of the hidden layer. Example sparsity_factor = 0.001
+        x = tf.keras.layers.Dense(units=latent_dim, activity_regularizer=tf.keras.regularizers.l1(_sparsity), name='latent_layer')(x)
+    else:
+        x = tf.keras.layers.Dense(units=latent_dim, name='latent_layer')(x)
     x = tf.keras.layers.LeakyReLU(alpha=_lrelu_alpha)(x)
 
     # Decoder Part
@@ -113,21 +123,26 @@ def build_CBAMConvAEModelV1(input_shape, latent_dim, layer_sizes=[32, 64, 128, 1
     _padding="same"
     _use_bias=True
     _lrelu_alpha=0.3
+    _sparsity=None
 
     # Argument setting
     for key, value in kwargs.items():
         if key == "kernel_size":
             _kernel_size = value
-        if key == "strides":
+        elif key == "strides":
             _strides = value
-        if key == "act_end":
+        elif key == "act_end":
             _act_end = value
-        if key == "padding":
+        elif key == "padding":
             _padding = value
-        if key == "use_bias":
+        elif key == "use_bias":
             _use_bias = value
-        if key == "lrelu_alpha":
+        elif key == "lrelu_alpha":
             _lrelu_alpha = value
+        elif key == "sparsity":
+            _sparsity = value
+        else:
+            raise ValueError(f"{key} could not recognized")
     
     # Encoder Part
     input = tf.keras.Input(shape=input_shape)
@@ -152,7 +167,12 @@ def build_CBAMConvAEModelV1(input_shape, latent_dim, layer_sizes=[32, 64, 128, 1
         x = tf.keras.layers.LeakyReLU(alpha=_lrelu_alpha)(x)
 
     # Latent vector
-    x = tf.keras.layers.Dense(units=latent_dim, name='latent_layer')(x)
+    if _sparsity != None:
+        # The activity regularizer for sparsity in autoencoders is typically implemented using the 
+        # L1 regularization term on the activations of the hidden layer. Example sparsity_factor = 0.001
+        x = tf.keras.layers.Dense(units=latent_dim, activity_regularizer=tf.keras.regularizers.l1(_sparsity), name='latent_layer')(x)
+    else:
+        x = tf.keras.layers.Dense(units=latent_dim, name='latent_layer')(x)
     x = tf.keras.layers.LeakyReLU(alpha=_lrelu_alpha)(x)
 
     # Decoder Part
@@ -205,21 +225,26 @@ def build_ResCBAMConvAEModelV1(input_shape, latent_dim, layer_sizes=[32, 64, 128
     _padding="same"
     _use_bias=True
     _lrelu_alpha=0.3
+    _sparsity=None
 
     # Argument setting
     for key, value in kwargs.items():
         if key == "kernel_size":
             _kernel_size = value
-        if key == "strides":
+        elif key == "strides":
             _strides = value
-        if key == "act_end":
+        elif key == "act_end":
             _act_end = value
-        if key == "padding":
+        elif key == "padding":
             _padding = value
-        if key == "use_bias":
+        elif key == "use_bias":
             _use_bias = value
-        if key == "lrelu_alpha":
+        elif key == "lrelu_alpha":
             _lrelu_alpha = value
+        elif key == "sparsity":
+            _sparsity = value
+        else:
+            raise ValueError(f"{key} could not recognized")
     
     # Encoder Part
     input = tf.keras.Input(shape=input_shape)
@@ -242,7 +267,12 @@ def build_ResCBAMConvAEModelV1(input_shape, latent_dim, layer_sizes=[32, 64, 128
         x = tf.keras.layers.LeakyReLU(alpha=_lrelu_alpha)(x)
 
     # Latent vector
-    x = tf.keras.layers.Dense(units=latent_dim, name='latent_layer')(x)
+    if _sparsity != None:
+        # The activity regularizer for sparsity in autoencoders is typically implemented using the 
+        # L1 regularization term on the activations of the hidden layer. Example sparsity_factor = 0.001
+        x = tf.keras.layers.Dense(units=latent_dim, activity_regularizer=tf.keras.regularizers.l1(_sparsity), name='latent_layer')(x)
+    else:
+        x = tf.keras.layers.Dense(units=latent_dim, name='latent_layer')(x)
     x = tf.keras.layers.LeakyReLU(alpha=_lrelu_alpha)(x)
 
     # Decoder Part
