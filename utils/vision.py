@@ -908,6 +908,7 @@ class PixelWiseIoU:
     def calculate_px_wise_f1_score(self):
         precision = self.calculate_px_wise_precision()
         recall = self.calculate_px_wise_recall()
+        if (precision + recall) == 0: return 0
         return 2*((precision*recall)/(precision+recall))
 
     # Show all IoU metrics
