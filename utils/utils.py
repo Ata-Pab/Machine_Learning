@@ -606,6 +606,8 @@ def random_cutout_image(image, min_mask_edge=5, max_mask_edge=20, num_cuts=1, pa
       return tf.convert_to_tensor(image, dtype=tf.float32)
     else:
       return image
+
+### ========================== EXPERIMENTAL SETUP ========================== ###
     
 def make_experiment_dir(data_dir):
     exp_num = 0
@@ -681,6 +683,52 @@ def remove_training_weights_except_last_epoch(weights_dir):
             if user == 'y':
                 os.remove(weight_file)
 
+def get_detailed_model_summary(model):
+    '''
+    Get detailed custom Keras model summary
+    model: custom Keras model
+    '''
+    detailed_summary = []
+    for layer in model.layers:
+        layer_summary = {}
+        layer_summary['name'] = layer.name
+        layer_summary['type'] = layer.__class__.__name__
+        layer_summary['output_shape'] = layer.output_shape
+        layer_summary['config'] = layer.get_config()
+        detailed_summary.append(layer_summary)
+    
+    return detailed_summary
+
+def save_model_summary(model, save_dir):
+    '''
+    Save custom model summary (Detailed summary + Keras API summary)
+    Detailed summary: Layer name, output shapes, configurations
+    model: custom Keras model
+    save_dir: path
+    '''
+    summary_stringlist = []
+    model_layers_string = ""
+
+    # Generate the detailed summary
+    detailed_summary = get_detailed_model_summary(model)
+
+    for ix, layer_summary in enumerate(detailed_summary):
+        model_layers_string += f"{ix+1}. Layer Name: {layer_summary['name']}, Type: {layer_summary['type']}\n"
+        model_layers_string += f"Output Shape: {layer_summary['output_shape']}\n"
+        model_layers_string += "Configuration:\n"
+        for key, value in layer_summary['config'].items():
+            model_layers_string += f"  * {key}: {value}\n"
+        model_layers_string += "===========================\n\n"
+
+    model.summary(print_fn=lambda x: summary_stringlist.append(x))
+    short_model_summary = "\n".join(summary_stringlist)
+    model_layers_string += short_model_summary
+
+    # Now you can save this summary to a file
+    with open(save_dir, "w") as file:
+        file.write(model_layers_string)
+### ========================== EXPERIMENTAL SETUP END ========================== ###
+                
 def get_new_image_size_according_to_patch_size(image_size, patch_size=256, max_grid_num=36, verbose=0):
     MAX_GRIDS = 36  # DETECT_DETAIL_POWER - Maximum 36 - Optimal Input Shape: (256, 256, 3)
     if max_grid_num > MAX_GRIDS: max_grid_num = MAX_GRIDS
