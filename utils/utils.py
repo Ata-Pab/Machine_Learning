@@ -463,6 +463,36 @@ def pip_install_package(package):
       installed_packages = [r.decode().split('==')[0] for r in reqs.split()]
       print(installed_packages)
 
+def patchify_tf_images(images, patch_size=(256, 256)):
+    '''
+    Patchify (partition) images
+    image: input images
+    patch_size: size of the images after partitioning
+    '''
+    width = images.shape[-3]
+    height = images.shape[-2]
+    # Specify the size of each patch and the strides to use for each patch
+    # (batch_size, patch_height, patch_width, channels)
+    sizes = [1, patch_size[0], patch_size[1], 1]
+    strides = [1, patch_size[0], patch_size[1], 1]
+    rates = [1, 1, 1, 1]  # Rate for dilated convolution, not used here
+    
+    # Extract patches
+    patches = tf.image.extract_patches(images=images,
+                                       sizes=sizes,
+                                       strides=strides,
+                                       rates=rates,
+                                       padding='VALID')
+    
+    # Reshape to get the final size: (num_images, (width/patch_size)*(height/patch_size), patch_size, patch_size, 3)
+    num_images = tf.shape(images)[0]   # get number of images
+    patches = tf.reshape(patches, (num_images, (width//patch_size[0])*(height//patch_size[1]), patch_size[0], patch_size[1], 3))
+
+    # (num_images*(width/patch_size)*(height/patch_size), patch_size, patch_size, 3)
+    patches = tf.reshape(patches, (-1, patch_size[0], patch_size[1], 3))
+    
+    return patches
+
 # Divide images into same sized partitions
 def patchify_images(img_file_list, patch_size=256, img_size=None, method='CROP', scl=False, cvt_rgb=False, verbose=0):
     '''
@@ -534,6 +564,17 @@ def unpatchify_img(patches, grid):
       image = np.concatenate((image, patch_list[row_ix]), axis=0)
   
   return image
+
+def unpatchify_dataset(image_batch, grid):
+    entire_image_batch = []
+    img_grid_id = 0
+
+    while img_grid_id < len(image_batch):
+        image = unpatchify_img(image_batch[img_grid_id:(img_grid_id+(grid[0]*grid[1]))], grid=grid)
+        entire_image_batch.append(image)
+        img_grid_id += (grid[0]*grid[1])
+
+    return np.array(entire_image_batch)
 
 def create_labels_for_mask(mask, categories):
   '''
