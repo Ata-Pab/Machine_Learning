@@ -648,6 +648,15 @@ def random_cutout_image(image, min_mask_edge=5, max_mask_edge=20, num_cuts=1, pa
     else:
       return image
 
+def centralize_gradients(gradients):
+    centralized_gradients = []
+    for grad in gradients:
+        if grad is not None:
+            mean = tf.reduce_mean(grad, axis=list(range(len(grad.shape))), keepdims=True)
+            grad -= mean
+        centralized_gradients.append(grad)
+    return centralized_gradients
+
 ### ========================== EXPERIMENTAL SETUP ========================== ###
     
 def make_experiment_dir(data_dir):
