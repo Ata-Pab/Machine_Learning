@@ -208,6 +208,15 @@ def focal_loss(y_true, y_pred, alpha=1.0, gamma=2.0):
 
     return tf.reduce_mean(alpha * focal_loss)
 
+def cosine_loss(y_true, y_pred):
+    '''
+    Cosine Similarity = A⋅B / (∥A∥∥B∥)
+    '''
+    y_true_normalized = tf.nn.l2_normalize(y_true, axis=1)
+    y_pred_normalized = tf.nn.l2_normalize(y_pred, axis=1)
+    cosine_distance = 1 - tf.reduce_sum(tf.multiply(y_true_normalized, y_pred_normalized), axis=1)
+    return tf.reduce_mean(cosine_distance)
+
 # Mad Score
 # # Example usage - Calculate MSE (mean squared error) between ground truth and reconstructed data before employing mad_score
 # THRESHOLD = 3
