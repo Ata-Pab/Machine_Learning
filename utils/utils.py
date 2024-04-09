@@ -247,6 +247,13 @@ def normalize_image(image, eps=1e-8, cvt_dtype_uint8=True):
         image = image.astype("float32")
     return image
 
+def minmax_scale_tf(tf_array):
+    min = tf.reduce_min(tf_array).numpy()
+    max = tf.reduce_max(tf_array).numpy()
+
+    tf_array = (tf_array - min) / (max - min)
+    return tf_array
+
 def heatmap_to_binary_mask(heatmap, threshold):
     binary_mask = (heatmap > threshold).astype(np.uint8)
     return binary_mask
