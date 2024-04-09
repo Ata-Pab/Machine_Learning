@@ -78,9 +78,9 @@ def prepare_evaluation_report(images, gen_images, gnd_images, exp_dict, exp_no, 
         for ix, (gnd_image, loss_diff_image) in enumerate(zip(gnd_images, loss_diff)):
             # (Recons. + Perceptual) Loss Approach
             if perceptual_input != None:
-                assert (len(perceptual_out_sample_image) == len(perp_layer_coeffs))
                 perceptual_out_sample_image = tf.expand_dims(loss_diff_image, axis=0)
                 perceptual_out_sample_image = tf.concat((perceptual_out_sample_image, perceptual_input[:,ix,:,:]), axis=0)
+                assert (len(perceptual_out_sample_image) == len(perp_layer_coeffs))
                 loss_diff_mask = perceptual_out_sample_image[0]*perp_layer_coeffs[0]
                 for coeff_ix in range(1,len(perp_layer_coeffs)):
                     loss_diff_mask += perceptual_out_sample_image[coeff_ix]*perp_layer_coeffs[coeff_ix]
